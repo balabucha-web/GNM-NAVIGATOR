@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ГНМ Навигатор — Полная база (WIP)</title>
+<meta name="description" content="Офлайн-навигатор по СБП ГНМ: поиск по органам, конфликтам, симптомам и диагнозам. Данные сохраняются локально.">
+<style>
+:root{
+ --accent:#3fa5ff; --bg:#f5f5f7; --bgd:#0f1115;
+ --tx:#1f2328; --txd:#e7eaf0; --card:#fff; --cardd:#141821;
+ --muted:#6b7280; --ring:rgba(63,165,255,.25);
+ font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);transition:.25s}
+body.dark{background:var(--bgd);color:var(--txd)}
+.wrap{max-width:1200px;margin:0 auto}
+header{position:sticky;top:0;z-index:10;display:flex;gap:.75rem;align-items:center;justify-content:space-between;
+  padding:12px 16px;background:rgba(255,255,255,.75);backdrop-filter:blur(10px);border-bottom:1px solid #0001}
+body.dark header{background:rgba(15,17,21,.75);border-color:#fff1}
+.brand{font-weight:800;letter-spacing:.2px}
+.tools{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.search{min-width:220px;flex:1;display:flex;align-items:center;gap:.5rem;background:var(--card);
+  border:1px solid #0002;border-radius:12px;padding:.45rem .6rem}
+body.dark .search{background:var(--cardd);border-color:#fff1}
+.search input{flex:1;border:0;outline:0;background:transparent;color:inherit;font-size:14px}
+.kbd{font:12px/1 mono;opacity:.65;border:1px solid #0002;border-radius:6px;padding:2px 6px}
+body.dark .kbd{border-color:#fff2}
+.btn{border:1px solid #0002;background:var(--card);color:inherit;border-radius:10px;padding:.45rem .7rem;cursor:pointer}
+body.dark .btn{background:var(--cardd);border-color:#fff1}
+.btn:hover{box-shadow:0 0 0 3px var(--ring)}
+.tabs{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center;padding:8px 12px}
+.tab{padding:.45rem .8rem;border-radius:999px;cursor:pointer;border:1px solid #0002;background:var(--card)}
+body.dark .tab{background:var(--cardd);border-color:#fff1}
+.tab.active{background:var(--accent);color:#fff;border-color:transparent}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;padding:12px}
+.card{background:var(--card);border:1px solid #0002;border-radius:14px;padding:14px;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+body.dark .card{background:var(--cardd);border-color:#fff1;box-shadow:0 1px 2px rgba(255,255,255,.06)}
+.card h3{margin:0 0 6px;color:var(--accent);font-size:18px}
+.card p{margin:6px 0;font-size:14px}
+.badge{display:inline-block;background:#eef6ff;color:#0a66c2;border-radius:999px;padding:2px 8px;font-size:12px;margin:2px 6px 0 0}
+body.dark .badge{background:#0e2136;color:#8ec4ff}
+textarea{width:100%;min-height:72px;resize:vertical;border-radius:10px;border:1px solid #0002;padding:8px;background:transparent;color:inherit}
+body.dark textarea{border-color:#fff1}
+footer{padding:20px 12px;text-align:center;opacity:.75;font-size:13px}
+.hr{height:1px;background:#0001;margin:6px 0}
+body.dark .hr{background:#fff1}
+.small{font-size:12px;opacity:.75}
+</style>
+</head>
+<body>
+<header class="wrap">
+  <div class="brand">🧠 ГНМ Навигатор — Полная база</div>
+  <div class="tools">
+    <div class="search" title="Поиск по органу, конфликту, симптомам, диагнозам">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <input id="q" placeholder="Поиск: орган / конфликт / симптом / диагноз" />
+      <span class="kbd">/</span>
+    </div>
+    <button id="theme" class="btn">🌙 Тема</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav id="tabs" class="tabs"></nav>
+  <section id="cards" class="cards" aria-live="polite"></section>
+</main>
+
+<footer class="wrap">
+  <div class="hr"></div>
+  <div>© Andrey Balabucha · Офлайн. Заметки хранятся в LocalStorage.</div>
+  <div class="small">5 БНЗ: биосмысл, двухфазность, микробы-ремонт, онтогенез тканей, роль психики/мозга/органа.</div>
+</footer>
+
+<script>
+/* === ТЕМА, ВКЛАДКИ, ПОИСК === */
+const TABS = [
+  {id:'endoderma', label:'Эндодерма'},
+  {id:'meso_old',  label:'Старая мезодерма'},
+  {id:'meso_new',  label:'Новая мезодерма'},
+  {id:'ectoderma', label:'Эктодерма'},
+  {id:'nervous',   label:'Нервная система'}
+];
+let state = {
+  tab: localStorage.getItem('gnm.tab') || 'endoderma',
+  theme: localStorage.getItem('gnm.theme') || (matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'),
+  q: ''
+};
+if(state.theme==='dark'){ document.body.classList.add('dark'); document.getElementById('theme').textContent='☀️ Тема'; }
+document.getElementById('theme').onclick=()=>{
+  document.body.classList.toggle('dark');
+  state.theme=document.body.classList.contains('dark')?'dark':'light';
+  localStorage.setItem('gnm.theme',state.theme);
+  document.getElementById('theme').textContent=state.theme==='dark'?'☀️ Тема':'🌙 Тема';
+};
+const tabsEl=document.getElementById('tabs');
+TABS.forEach(t=>{
+  const b=document.createElement('button');
+  b.className='tab'+(t.id===state.tab?' active':''); b.textContent=t.label;
+  b.onclick=()=>{ state.tab=t.id; localStorage.setItem('gnm.tab',t.id); render(); };
+  tabsEl.appendChild(b);
+});
+window.addEventListener('keydown',e=>{ if(e.key==='/'){ e.preventDefault(); document.getElementById('q').focus(); }});
+document.getElementById('q').addEventListener('input',e=>{ state.q=e.target.value.toLowerCase().trim(); render(); });
+
+/* === БАЗА ДАННЫХ (заполнено: эндодерма + старая мезодерма; остальное — заглушки) === */
+const DB = {
+  endoderma: [
+    {id:'endo_1', organ:'Ротовая полость, дёсны, слюнные железы', conflict:'Невозможность «захватить»/«удержать кусок».', symptoms:'CA: гиперсекреция, утолщение желёз. PCL: воспаление, отёк, боль.', diagnosis:'Сиалоаденит, пародонтоз/гингивит, адено-карцинома (длит. CA).', sense:'Облегчить захват и первичную обработку «куска».', laterality:'Левая — «не могу взять», правая — «не хочу отдавать».', tags:['эндодерма','пищеварение']},
+    {id:'endo_2', organ:'Пищевод', conflict:'Не могу проглотить/выплюнуть «кусок».', symptoms:'CA: спазмы/дисфагия. PCL: воспаление, отёк, боль при глотании.', diagnosis:'Эзофагит, карцинома (дистальн.), эрозии/язвы (проксим.).', sense:'Облегчить прохождение/отторжение «куска».', laterality:'По контексту партнёр/мать-ребёнок.', tags:['эндодерма','эктодерма']},
+    {id:'endo_3', organ:'Желудок (железы/слизистая)', conflict:'«Не перевариваю» обиду/унижение/предательство.', symptoms:'CA: гиперсекреция/эрозии. PCL: гастрит, боль, утомляемость.', diagnosis:'Гастрит, язва, аденокарцинома/плоскоклеточные изм.', sense:'Усилить переваривание «трудного куска».', laterality:'П: партнёр; Л: мать/ребёнок (для правши).', tags:['эндодерма','желудок']},
+    {id:'endo_4', organ:'Печень', conflict:'Потеря «куска»/жизненного ресурса.', symptoms:'CA: рост гепатоцитов. PCL: гепатитоподобное воспаление.', diagnosis:'Рак печени (CA), «гепатит» (PCL).', sense:'Усилить усвоение/накопление ресурса.', laterality:'П — конкретный ресурс, Л — эмоциональный.', tags:['эндодерма','печень']},
+    {id:'endo_5', organ:'Желчный пузырь', conflict:'«Жирный/несправедливый кусок» не переваривается.', symptoms:'CA: застой желчи. PCL: колики, воспаление.', diagnosis:'Камни, холецистит.', sense:'Усилить эмульгацию «тяжёлого куска».', tags:['эндодерма','желчь']},
+    {id:'endo_6', organ:'Поджелудочная железа', conflict:'«Не хватает для жизни» / семейная «обида-кусок».', symptoms:'CA: рост ацинарных клеток. PCL: панкреатит (боль слева).', diagnosis:'Аденокарцинома (CA), панкреатит (PCL).', sense:'Усилить секрецию для переработки «куска».', laterality:'Л — мать/ребёнок, П — партнёр.', tags:['эндодерма','поджелудочная']},
+    {id:'endo_7', organ:'Тонкий кишечник', conflict:'Не могу «усвоить» ситуацию.', symptoms:'CA: усиление всасывания. PCL: диарея, спазмы.', diagnosis:'Энтерит (PCL), аденокарцинома (CA).', sense:'Улучшить усвоение «куска».', tags:['эндодерма','тонкий кишечник']},
+    {id:'endo_8', organ:'Толстый кишечник/прямая кишка', conflict:'Нужно избавиться от «ненужного» / «застряло».', symptoms:'CA: гиперплазия. PCL: слизь/кровь, боли.', diagnosis:'Колит, рак прямой кишки, геморрой.', sense:'Форсировать выведение «лишнего».', tags:['эндодерма','толстый кишечник']},
+    {id:'endo_9', organ:'Мочевой пузырь (эндоэпителий)', conflict:'Территориальное раздражение «меня достали».', symptoms:'CA: гиперплазия. PCL: цистит, частые позывы.', diagnosis:'Цистит (PCL), аденокарцинома (CA).', sense:'Усиление маркировки границ.', tags:['эндодерма','пузырь']},
+    {id:'endo_10', organ:'Матка (железистая часть)', conflict:'Потеря потомства/«ребёнка» (в т.ч. символич.).', symptoms:'CA: рост эпителия. PCL: кровотечения, спазмы.', diagnosis:'Аденокарцинома (CA), эндометрит (PCL).', sense:'Биокомпенсация утраты.', laterality:'По женскому контексту.', tags:['эндодерма','репродуктивная']}
+  ],
+  meso_old: [
+    {id:'mold_1', organ:'Плевра/Брюшина/Перикард', conflict:'Атака внутрь, «прокол/удар» органа.', symptoms:'CA: утолщение сероз. PCL: воспаление, выпот, боль.', diagnosis:'Плеврит, перитонит, перикардит.', sense:'Защитный «панцирь».', tags:['старая мезодерма','серозы']},
+    {id:'mold_2', organ:'Кости, надкостница', conflict:'Потеря самоуважения, унижение.', symptoms:'CA: остеолиз. PCL: восстановление, отёк, боль.', diagnosis:'Остеопороз/остеолиз → остеомиелит/«опухоль» (PCL).', sense:'Перестроить и усилить участок.', tags:['старая мезодерма','кость']},
+    {id:'mold_3', organ:'Хрящи/связки/сухожилия', conflict:'Потеря гибкости/подвижности (символ.).', symptoms:'CA: ослабление. PCL: воспаление, боль.', diagnosis:'Артроз → артрит (PCL), тендинит.', sense:'Вернуть прочность/эластичность.', tags:['старая мезодерма','связки']},
+    {id:'mold_4', organ:'Молочная железа (альвеолы)', conflict:'Забота/беспокойство о «слабом».', symptoms:'CA: рост альвеол. PCL: распад узла, боль.', diagnosis:'Аденокарцинома (CA), мастит (PCL).', sense:'Усилить питание/уход.', laterality:'П — партнёр, Л — ребёнок/мать.', tags:['старая мезодерма','грудь']},
+    {id:'mold_5', organ:'Селезёнка', conflict:'Опасность кровопотери/истощения.', symptoms:'CA: гиперплазия. PCL: воспаление, боль слева.', diagnosis:'Спленомегалия/спленит; лейкемия (ремонт).', sense:'Компенсация потери крови.', tags:['старая мезодерма','селезёнка']},
+    {id:'mold_6', organ:'Почки — собирательные канальцы', conflict:'Изоляция/брошенность («без воды»).', symptoms:'CA: задержка жидкости. PCL: отёки/выведение воды.', diagnosis:'Нефрит, НН (контекст).', sense:'Сохранить «жизненную воду».', tags:['старая мезодерма','почки']}
+  ],
+  meso_new: [],  // будет добавлено
+  ectoderma: [], // будет добавлено
+  nervous: []    // будет добавлено
+};
+
+/* === РЕНДЕР === */
+const searchEl=document.getElementById('q');
+function render(){
+  // вкладки
+  document.querySelectorAll('#tabs .tab').forEach((el,i)=>{
+    const id=TABS[i].id; el.classList.toggle('active', id===state.tab);
+  });
+  const area=document.getElementById('cards'); area.innerHTML='';
+  const query=(searchEl.value||'').toLowerCase().trim();
+  const list=(DB[state.tab]||[]).filter(x=>
+    !query ||
+    (x.organ&&x.organ.toLowerCase().includes(query)) ||
+    (x.conflict&&x.conflict.toLowerCase().includes(query)) ||
+    (x.symptoms&&x.symptoms.toLowerCase().includes(query)) ||
+    (x.diagnosis&&x.diagnosis.toLowerCase().includes(query)) ||
+    (x.sense&&x.sense.toLowerCase().includes(query)) ||
+    (x.tags&&x.tags.join(' ').toLowerCase().includes(query))
+  );
+  if(list.length===0){ area.innerHTML='<p style="text-align:center;opacity:.6;">Нет данных</p>'; return; }
+  list.forEach(item=>{
+    const c=document.createElement('div'); c.className='card';
+    const noteKey='note_'+item.id;
+    c.innerHTML=`
+      <h3>${item.organ}</h3>
+      ${item.system?`<p class="badge">${item.system}</p>`:''}
+      <p><b>Конфликт:</b> ${item.conflict||''}</p>
+      <p><b>Симптомы:</b> ${item.symptoms||''}</p>
+      <p><b>Диагнозы:</b> ${item.diagnosis||''}</p>
+      <p><b>Биол. смысл:</b> ${item.sense||''}</p>
+      ${item.laterality?`<p><b>Латерализация:</b> ${item.laterality}</p>`:''}
+      ${item.tags?`<p>${item.tags.map(t=>`<span class="badge">${t}</span>`).join('')}</p>`:''}
+      <label>Заметки:</label>
+      <textarea>${localStorage.getItem(noteKey)||''}</textarea>`;
+    c.querySelector('textarea').addEventListener('input',e=>{
+      localStorage.setItem(noteKey,e.target.value);
+    });
+    area.appendChild(c);
+  });
+}
+// инициализация вкладок
+const tabsBox=document.getElementById('tabs');
+TABS.forEach(t=>{
+  const b=document.createElement('button');
+  b.className='tab'+(t.id===state.tab?' active':''); b.textContent=t.label;
+  b.onclick=()=>{ state.tab=t.id; localStorage.setItem('gnm.tab',t.id); render(); };
+  tabsBox.appendChild(b);
+});
+// поиск
+document.getElementById('q').addEventListener('input',e=>{ state.q=e.target.value; render(); });
+
+// старт
+render();
+</script>
+</body>
+</html>
