@@ -58,10 +58,6 @@ class MainActivity : ComponentActivity() {
         startService(Intent(this, TripTrackingService::class.java).setAction(action))
     }
 
-    fun reloadTripConfig() {
-        serviceAction(TripTrackingService.ACTION_RELOAD_CONFIG)
-    }
-
     fun updateApiStatus(ok: Boolean, message: String) {
         snapshot = snapshot.copy(apiOk = ok, apiMessage = message)
         getSharedPreferences("trip_state", MODE_PRIVATE).edit()
