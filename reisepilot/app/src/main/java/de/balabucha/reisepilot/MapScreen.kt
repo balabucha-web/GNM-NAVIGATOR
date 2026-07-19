@@ -79,7 +79,7 @@ fun MapScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifier
                     useLiveRoute -> "Live-Route aus dem Hintergrundtracking"
                     preview.route != null -> "Vorschau mit aktuellem Mapbox-Verkehr"
                     preview.loading -> "Route und Verkehr werden geladen"
-                    preview.error != null -> preview.error
+                    preview.error != null -> preview.error ?: "Route konnte nicht geladen werden"
                     tokenValid -> "Basiskarte aktiv · Route wird beim Tracking ergänzt"
                     else -> "Basiskarte aktiv · für Live-Verkehr Mapbox-Token prüfen"
                 },
