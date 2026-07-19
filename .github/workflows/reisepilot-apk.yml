@@ -3,7 +3,7 @@ name: Build ReisePilot APK
 on:
   push:
     branches:
-      - reisepilot-live-v33
+      - reisepilot-live-v34
     paths:
       - 'reisepilot/**'
       - '.github/workflows/reisepilot-apk.yml'
@@ -32,6 +32,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
+      - name: Check Wikimedia image service
+        run: python3 scripts/check_wikimedia_images.py
       - name: Test, lint and build debug APK
         id: build
         shell: bash
@@ -45,14 +47,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-v3.3-build-log
+          name: ReisePilot-v3.4-build-log
           path: reisepilot/build.log
-          if-no-files-found: error
+          if-no-files-found: warn
       - name: Upload test and lint reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-v3.3-reports
+          name: ReisePilot-v3.4-reports
           path: |
             reisepilot/app/build/reports/tests/testDebugUnitTest
             reisepilot/app/build/reports/lint-results-debug.html
@@ -61,7 +63,7 @@ jobs:
         if: steps.build.outputs.exit_code == '0'
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-Live-v3.3-APK
+          name: ReisePilot-Live-v3.4-APK
           path: reisepilot/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
       - name: Fail when validation failed
