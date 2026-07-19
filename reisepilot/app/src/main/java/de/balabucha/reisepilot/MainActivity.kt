@@ -58,6 +58,10 @@ class MainActivity : ComponentActivity() {
         startService(Intent(this, TripTrackingService::class.java).setAction(action))
     }
 
+    fun reloadTripConfig() {
+        serviceAction(TripTrackingService.ACTION_RELOAD_CONFIG)
+    }
+
     fun updateApiStatus(ok: Boolean, message: String) {
         snapshot = snapshot.copy(apiOk = ok, apiMessage = message)
         getSharedPreferences("trip_state", MODE_PRIVATE).edit()
@@ -72,6 +76,26 @@ class MainActivity : ComponentActivity() {
             "https://www.google.com/maps/dir/?api=1&origin=greet+H%C3%B4tel+Montb%C3%A9liard&destination=Malibu+Village+Canet-en-Roussillon&travelmode=driving"
         }
         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uri)))
+    }
+
+    fun openPointRoute(point: GeoPoint, label: String) {
+        val destination = "${point.lat},${point.lon}"
+        val uri = Uri.parse(
+            "https://www.google.com/maps/dir/?api=1&destination=${Uri.encode(destination)}" +
+                "&destination_place_id=&travelmode=driving"
+        )
+        startActivity(Intent(Intent.ACTION_VIEW, uri).apply {
+            putExtra("query", label)
+        })
+    }
+
+    fun openMapSearch(query: String) {
+        startActivity(
+            Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encode(query)}")
+            )
+        )
     }
 
     fun isInstalled(pkg: String): Boolean = try {
