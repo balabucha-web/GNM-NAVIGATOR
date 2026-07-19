@@ -47,7 +47,11 @@ fun ReiseTheme(content: @Composable () -> Unit) {
 }
 
 enum class AppTab(val title: String, val short: String) {
-    LIVE("Live", "L"), MAP("Karte", "K"), PLAN("Plan", "P"), BOOKING("Buchung", "B"), MORE("Mehr", "M")
+    LIVE("Live", "L"),
+    MAP("Karte", "K"),
+    DISCOVER("Ziele", "Z"),
+    PLAN("Plan", "P"),
+    MORE("Mehr", "M")
 }
 
 @Composable
@@ -86,8 +90,8 @@ fun ReisePilotApp(activity: MainActivity, snapshot: TripSnapshot) {
         when (tab) {
             AppTab.LIVE -> LiveScreen(activity, snapshot, Modifier.padding(padding))
             AppTab.MAP -> MapScreen(activity, snapshot, Modifier.padding(padding))
+            AppTab.DISCOVER -> DiscoverScreen(activity, snapshot, Modifier.padding(padding))
             AppTab.PLAN -> PlanScreen(activity, snapshot.stage, Modifier.padding(padding))
-            AppTab.BOOKING -> BookingScreen(activity, Modifier.padding(padding))
             AppTab.MORE -> MoreScreen(activity, snapshot, Modifier.padding(padding))
         }
     }
@@ -149,10 +153,6 @@ fun Metric(label: String, value: String, light: Light, modifier: Modifier) {
     }
 }
 
-/**
- * Always places the value below the label. Long API messages can therefore never squeeze
- * the label into one-character-wide vertical text on narrow phones.
- */
 @Composable
 fun StatusLine(label: String, value: String, light: Light) {
     Row(
@@ -168,7 +168,7 @@ fun StatusLine(label: String, value: String, light: Light) {
                 value,
                 color = Muted,
                 fontSize = 14.sp,
-                maxLines = 3,
+                maxLines = 4,
                 overflow = TextOverflow.Ellipsis
             )
         }
