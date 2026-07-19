@@ -11,8 +11,8 @@ android {
         applicationId = "de.balabucha.reisepilot"
         minSdk = 26
         targetSdk = 37
-        versionCode = 5
-        versionName = "3.2"
+        versionCode = 6
+        versionName = "3.3"
     }
 
     buildFeatures {
@@ -40,4 +40,10 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("com.google.android.gms:play-services-location:21.4.0")
+
+    implementation("org.maplibre.gl:android-sdk:11.8.0")
+    implementation("io.coil-kt.coil3:coil-compose:3.5.0")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:3.5.0")
+
+    testImplementation("junit:junit:4.13.2")
 }
