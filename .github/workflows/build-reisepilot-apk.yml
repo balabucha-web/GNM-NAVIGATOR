@@ -1,6 +1,11 @@
 name: Build ReisePilot APK
 
 on:
+  push:
+    branches: [ build-reisepilot-apk ]
+    paths:
+      - 'reisepilot-app/**'
+      - '.github/workflows/build-reisepilot-apk.yml'
   pull_request:
     branches: [ main ]
     paths:
