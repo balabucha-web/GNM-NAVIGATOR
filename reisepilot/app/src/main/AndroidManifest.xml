@@ -13,7 +13,7 @@
 
     <queries>
         <package android:name="com.google.android.apps.maps"/>
-        <package android:name="com.coyotesystems.android"/>
+        <package android:name="fr.gouv.bisonfute"/>
         <package android:name="de.blitzer.plus"/>
         <package android:name="de.blitzer"/>
         <intent>
