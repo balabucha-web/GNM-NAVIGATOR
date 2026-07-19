@@ -20,9 +20,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         loadSnapshot()
-        val filter = IntentFilter(TripTrackingService.ACTION_UPDATE)
-        if (Build.VERSION.SDK_INT >= 33) registerReceiver(receiver, filter, RECEIVER_NOT_EXPORTED)
-        else @Suppress("DEPRECATION") registerReceiver(receiver, filter)
+        ContextCompat.registerReceiver(
+            this,
+            receiver,
+            IntentFilter(TripTrackingService.ACTION_UPDATE),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
         setContent { ReiseTheme { ReisePilotApp(this, snapshot) } }
     }
 
