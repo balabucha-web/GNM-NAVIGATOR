@@ -15,9 +15,13 @@ import org.json.JSONObject
 
 @Composable
 fun MapScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifier) {
-    val token = activity.getSharedPreferences("settings", Context.MODE_PRIVATE).getString("mapbox_token", "").orEmpty()
+    val token = activity.getSharedPreferences("settings", Context.MODE_PRIVATE)
+        .getString("mapbox_token", "").orEmpty()
+        .trim().removePrefix("Bearer ").trim('"', '\'', ' ', '\n', '\r', '\t')
     Page("Live-Karte", "Route, Verkehr, Maut und Tankstopps", modifier) {
-        if (!token.startsWith("pk.")) item { WarningCard("Kartenzugang fehlt", "Unter Mehr einen öffentlichen Mapbox-Token eintragen.", Light.YELLOW) }
+        if (!token.startsWith("pk.")) item {
+            WarningCard("Kartenzugang fehlt", "Unter Mehr den Token speichern und prüfen.", Light.YELLOW)
+        }
         item {
             Card(Modifier.fillMaxWidth().height(470.dp), shape = RoundedCornerShape(22.dp), border = BorderStroke(1.dp, Line)) {
                 MapWebView(token, snapshot)
