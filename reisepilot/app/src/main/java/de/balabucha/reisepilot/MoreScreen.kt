@@ -15,6 +15,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+private fun normalizeMapboxToken(raw: String): String = raw
+    .trim()
+    .removePrefix("Bearer ")
+    .trim('"', '\'', ' ', '\n', '\r', '\t')
+    .replace("\n", "")
+    .replace("\r", "")
+    .replace(" ", "")
 
 @Composable
 fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifier) {
@@ -24,6 +35,13 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
     var consumption by remember { mutableStateOf(prefs.getFloat("consumption", 7.4f).toString()) }
     var voice by remember { mutableStateOf(prefs.getBoolean("voice_alerts", true)) }
     var saved by remember { mutableStateOf(false) }
+    var tokenStatus by remember { mutableStateOf(
+        if (normalizeMapboxToken(token).startsWith("pk.")) "Token gespeichert · noch nicht geprüft" else "Kein gültiger öffentlicher Token gespeichert"
+    ) }
+    var tokenLight by remember { mutableStateOf(if (normalizeMapboxToken(token).startsWith("pk.")) Light.YELLOW else Light.RED) }
+    var checkingToken by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val diagnosticPrefs = remember { activity.getSharedPreferences("diagnostics", Context.MODE_PRIVATE) }
 
     val nm = activity.getSystemService(NotificationManager::class.java)
     val listener = nm.isNotificationListenerAccessGranted(ComponentName(activity, TravelNotificationListener::class.java))
@@ -35,15 +53,53 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
                 Text("Mapbox-Kartenzugang", style = MaterialTheme.typography.titleLarge)
                 Text("Öffentlichen Token mit pk. eintragen.", color = Muted)
                 Spacer(Modifier.height(9.dp))
-                OutlinedTextField(token, { token = it.trim(); saved = false }, label = { Text("Mapbox-Token") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(
+                    token,
+                    { token = it; saved = false; tokenStatus = "Noch nicht geprüft"; tokenLight = Light.GREY },
+                    label = { Text("Mapbox-Token") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(7.dp))
+                StatusLine("Token", tokenStatus, tokenLight)
                 Spacer(Modifier.height(9.dp))
                 Button(onClick = {
-                    prefs.edit().putString("mapbox_token", token)
+                    val clean = normalizeMapboxToken(token)
+                    token = clean
+                    if (!clean.startsWith("pk.") || clean.length < 30) {
+                        tokenStatus = "Ungültig · muss mit pk. beginnen"
+                        tokenLight = Light.RED
+                        return@Button
+                    }
+                    val committed = prefs.edit().putString("mapbox_token", clean)
                         .putFloat("start_litres", litres.replace(',', '.').toFloatOrNull() ?: 60f)
                         .putFloat("consumption", consumption.replace(',', '.').toFloatOrNull() ?: 7.4f)
-                        .putBoolean("voice_alerts", voice).apply()
+                        .putBoolean("voice_alerts", voice).commit()
+                    if (!committed) {
+                        tokenStatus = "Speichern fehlgeschlagen"
+                        tokenLight = Light.RED
+                        return@Button
+                    }
                     saved = true
-                }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) { Text(if (saved) "Gespeichert" else "Speichern") }
+                    checkingToken = true
+                    tokenStatus = "Verbindung wird geprüft …"
+                    tokenLight = Light.YELLOW
+                    scope.launch {
+                        val result = withContext(Dispatchers.IO) {
+                            runCatching { MapboxClient.route(clean, TripConfig.hotel, TripConfig.canet) }
+                        }
+                        checkingToken = false
+                        result.onSuccess {
+                            tokenStatus = "Verbunden · Live-Verkehr funktioniert"
+                            tokenLight = Light.GREEN
+                        }.onFailure {
+                            tokenStatus = it.message?.take(90) ?: "API-Prüfung fehlgeschlagen"
+                            tokenLight = Light.RED
+                        }
+                    }
+                }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
+                    Text(if (checkingToken) "Prüfe …" else if (saved) "Erneut prüfen" else "Speichern und prüfen")
+                }
             }
         }
         item {
@@ -66,6 +122,8 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
                 StatusLine("Tracking", if (snapshot.active) "aktiv" else "nicht gestartet", if (snapshot.active) Light.GREEN else Light.GREY)
                 StatusLine("Live-API", if (snapshot.apiOk) "verbunden" else snapshot.apiMessage, if (snapshot.apiOk) Light.GREEN else Light.YELLOW)
                 StatusLine("App-Erkennung", if (listener) "freigegeben" else "Zugriff fehlt", if (listener) Light.GREEN else Light.YELLOW)
+                val lastError = diagnosticPrefs.getString("last_error", "").orEmpty()
+                if (lastError.isNotBlank()) StatusLine("Letzter Fehler", lastError.take(90), Light.YELLOW)
                 Spacer(Modifier.height(9.dp))
                 OutlinedButton(onClick = { activity.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }, modifier = Modifier.fillMaxWidth()) { Text("Benachrichtigungszugriff") }
                 OutlinedButton(onClick = { activity.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${activity.packageName}"))) }, modifier = Modifier.fillMaxWidth()) { Text("Android-App-Einstellungen") }
