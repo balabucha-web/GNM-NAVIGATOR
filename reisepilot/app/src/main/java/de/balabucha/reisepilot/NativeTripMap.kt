@@ -20,6 +20,7 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
+import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory.*
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.geojson.Feature
@@ -126,13 +127,23 @@ private class NativeMapController(context: Context) {
         upsertLine(style, "route-severe", byLevel.getValue("severe"), Color.rgb(180, 35, 24), 7f)
         upsertLine(style, "route-unknown", byLevel.getValue("unknown"), Color.rgb(23, 107, 135), 5f)
 
-        val current = latestSnapshot.lat?.let { lat -> latestSnapshot.lon?.let { lon -> GeoPoint(lat, lon) } }
+        val current = latestSnapshot.lat?.let { lat ->
+            latestSnapshot.lon?.let { lon -> GeoPoint(lat, lon) }
+        }
         val tolls = latestSnapshot.tolls.ifEmpty { latestPreview?.tolls.orEmpty() }
-        val fuels = TripConfig.fuelStops(latestSnapshot.stage)
+        val fallbackFuels = TripConfig.fuelStops(latestSnapshot.stage)
+        val recommendedFuel = latestSnapshot.fuelSuggestion?.point
 
-        upsertPoints(style, "point-current", current?.let { listOf(it) }.orEmpty(), Color.rgb(23, 107, 135), 8f)
+        upsertPoints(style, "point-current", current?.let(::listOf).orEmpty(), Color.rgb(23, 107, 135), 8f)
         upsertPoints(style, "point-tolls", tolls.map { it.point }, Color.rgb(183, 121, 0), 7f)
-        upsertPoints(style, "point-fuels", fuels, Color.rgb(24, 121, 78), 7f)
+        upsertPoints(style, "point-fallback-fuels", fallbackFuels, Color.rgb(84, 151, 116), 6f)
+        upsertPoints(
+            style,
+            "point-recommended-fuel",
+            recommendedFuel?.let(::listOf).orEmpty(),
+            Color.rgb(0, 158, 96),
+            11f
+        )
         upsertPoints(
             style,
             "point-ends",
@@ -144,9 +155,11 @@ private class NativeMapController(context: Context) {
         val cameraKey = "${latestSnapshot.stage}:${route.firstOrNull()?.lat}:${route.lastOrNull()?.lat}:${route.size}"
         if (cameraKey != lastCameraKey) {
             lastCameraKey = cameraKey
-            fitCamera(route.ifEmpty {
-                listOf(TripConfig.origin(latestSnapshot.stage), TripConfig.destination(latestSnapshot.stage))
-            })
+            fitCamera(
+                route.ifEmpty {
+                    listOf(TripConfig.origin(latestSnapshot.stage), TripConfig.destination(latestSnapshot.stage))
+                }
+            )
         }
     }
 
@@ -172,7 +185,13 @@ private class NativeMapController(context: Context) {
         }
     }
 
-    private fun upsertLine(style: Style, id: String, features: List<Feature>, color: Int, width: Float) {
+    private fun upsertLine(
+        style: Style,
+        id: String,
+        features: List<Feature>,
+        color: Int,
+        width: Float
+    ) {
         val sourceId = "$id-source"
         val layerId = "$id-layer"
         val collection = FeatureCollection.fromFeatures(features)
@@ -184,8 +203,8 @@ private class NativeMapController(context: Context) {
                     lineColor(color),
                     lineWidth(width),
                     lineOpacity(0.92f),
-                    lineCap("round"),
-                    lineJoin("round")
+                    lineCap(Property.LINE_CAP_ROUND),
+                    lineJoin(Property.LINE_JOIN_ROUND)
                 )
             )
         } else {
@@ -193,7 +212,13 @@ private class NativeMapController(context: Context) {
         }
     }
 
-    private fun upsertPoints(style: Style, id: String, points: List<GeoPoint>, color: Int, radius: Float) {
+    private fun upsertPoints(
+        style: Style,
+        id: String,
+        points: List<GeoPoint>,
+        color: Int,
+        radius: Float
+    ) {
         val sourceId = "$id-source"
         val layerId = "$id-layer"
         val features = points.map { point ->
