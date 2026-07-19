@@ -152,6 +152,9 @@ fun LiveScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
             }
         }
         item { NextAction(activity, snapshot) }
+        snapshot.fuelSuggestion?.let { suggestion ->
+            item { FuelSuggestionCard(activity, suggestion) }
+        }
         item { AutomaticStatus(snapshot, tokenValid) }
 
         if (!snapshot.apiOk && !tokenValid) {
@@ -226,12 +229,15 @@ private fun NextAction(activity: MainActivity, s: TripSnapshot) {
             Text(distanceText(it), color = Blue, fontSize = 26.sp, fontWeight = FontWeight.Black)
         }
         Spacer(Modifier.height(12.dp))
+
+        val fuelAction = s.fuelSuggestion != null && s.nextTitle.contains("Tank", true)
         val action = when {
             s.nextTitle.contains("anrufen", true) -> "Anrufen"
             s.nextTitle.contains("Pause", true) -> "Pause erledigt"
-            s.nextTitle.contains("Tank", true) -> "Vollgetankt"
+            fuelAction -> "Zur Tankstelle"
             else -> "Navigation öffnen"
         }
+
         Button(
             onClick = {
                 when (action) {
@@ -239,13 +245,52 @@ private fun NextAction(activity: MainActivity, s: TripSnapshot) {
                         if (s.stage == Stage.SUNDAY) "+33468732779" else "+33381901069"
                     )
                     "Pause erledigt" -> activity.serviceAction(TripTrackingService.ACTION_BREAK_DONE)
-                    "Vollgetankt" -> activity.serviceAction(TripTrackingService.ACTION_REFUEL_FULL)
+                    "Zur Tankstelle" -> s.fuelSuggestion?.let {
+                        activity.openPointRoute(it.point, it.name)
+                    }
                     else -> activity.openMaps(s.stage)
                 }
             },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(13.dp)
         ) { Text(action) }
+    }
+}
+
+@Composable
+private fun FuelSuggestionCard(activity: MainActivity, fuel: FuelSuggestion) {
+    AppCard {
+        Row(verticalAlignment = Alignment.Top) {
+            Lamp(if (fuel.pricePerLitre != null) Light.GREEN else Light.YELLOW, 16.dp)
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Automatischer Tankvorschlag", color = Muted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(fuel.name, style = MaterialTheme.typography.titleLarge)
+                if (fuel.address.isNotBlank()) Text(fuel.address, color = Muted)
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        StatusLine(
+            "Preis",
+            fuel.pricePerLitre?.let { "${"%.3f".format(it)} €/l Diesel" } ?: "Live-Preis für dieses Land nicht verfügbar",
+            if (fuel.pricePerLitre != null) Light.GREEN else Light.GREY
+        )
+        StatusLine("Entfernung", "${"%.1f".format(fuel.distanceAheadKm)} km voraus", Light.GREEN)
+        StatusLine("Umweg", "ca. ${"%.1f".format(fuel.detourKm)} km gesamt", if (fuel.detourKm <= 4) Light.GREEN else Light.YELLOW)
+        StatusLine("Quelle", fuel.source, Light.GREY)
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            Button(
+                onClick = { activity.openPointRoute(fuel.point, fuel.name) },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(13.dp)
+            ) { Text("Route") }
+            OutlinedButton(
+                onClick = { activity.serviceAction(TripTrackingService.ACTION_REFUEL_FULL) },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(13.dp)
+            ) { Text("Vollgetankt") }
+        }
     }
 }
 
@@ -272,6 +317,14 @@ private fun AutomaticStatus(s: TripSnapshot, tokenValid: Boolean) {
             s.pauseLight
         )
         StatusLine("Tank", "${"%.1f".format(s.fuelLitres)} Liter geschätzt", s.fuelLight)
+        StatusLine(
+            "Tankplanung",
+            s.fuelSuggestion?.let {
+                val price = it.pricePerLitre?.let { p -> "${"%.3f".format(p)} €/l · " }.orEmpty()
+                "$price${it.name} · ${"%.1f".format(it.distanceAheadKm)} km voraus"
+            } ?: if (s.active) "wird automatisch entlang der Route geprüft" else "startet mit dem Tracking",
+            if (s.fuelSuggestion != null) Light.GREEN else Light.GREY
+        )
         StatusLine(
             "API",
             when {
