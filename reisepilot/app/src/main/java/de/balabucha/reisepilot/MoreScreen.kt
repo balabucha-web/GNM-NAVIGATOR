@@ -1,0 +1,90 @@
+package de.balabucha.reisepilot
+
+import android.app.NotificationManager
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+
+@Composable
+fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifier) {
+    val prefs = remember { activity.getSharedPreferences("settings", Context.MODE_PRIVATE) }
+    var token by remember { mutableStateOf(prefs.getString("mapbox_token", "").orEmpty()) }
+    var litres by remember { mutableStateOf(prefs.getFloat("start_litres", 60f).toString()) }
+    var consumption by remember { mutableStateOf(prefs.getFloat("consumption", 7.4f).toString()) }
+    var voice by remember { mutableStateOf(prefs.getBoolean("voice_alerts", true)) }
+    var saved by remember { mutableStateOf(false) }
+
+    val nm = activity.getSystemService(NotificationManager::class.java)
+    val listener = nm.isNotificationListenerAccessGranted(ComponentName(activity, TravelNotificationListener::class.java))
+    val appPrefs = activity.getSharedPreferences("app_status", Context.MODE_PRIVATE)
+
+    Page("Mehr", "Kartenzugang, Apps und Hintergrundbetrieb", modifier) {
+        item {
+            AppCard {
+                Text("Mapbox-Kartenzugang", style = MaterialTheme.typography.titleLarge)
+                Text("Öffentlichen Token mit pk. eintragen.", color = Muted)
+                Spacer(Modifier.height(9.dp))
+                OutlinedTextField(token, { token = it.trim(); saved = false }, label = { Text("Mapbox-Token") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(9.dp))
+                Button(onClick = {
+                    prefs.edit().putString("mapbox_token", token)
+                        .putFloat("start_litres", litres.replace(',', '.').toFloatOrNull() ?: 60f)
+                        .putFloat("consumption", consumption.replace(',', '.').toFloatOrNull() ?: 7.4f)
+                        .putBoolean("voice_alerts", voice).apply()
+                    saved = true
+                }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) { Text(if (saved) "Gespeichert" else "Speichern") }
+            }
+        }
+        item {
+            AppCard {
+                Text("Fahrzeug", style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    OutlinedTextField(litres, { litres = it }, label = { Text("Starttank · Liter") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
+                    OutlinedTextField(consumption, { consumption = it }, label = { Text("l/100 km") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
+                }
+                Row(Modifier.fillMaxWidth().padding(top = 10.dp)) {
+                    Column(Modifier.weight(1f)) { Text("Sprachwarnungen", fontWeight = FontWeight.Bold); Text("Maut, Pause und Tanken", color = Muted) }
+                    Switch(voice, { voice = it })
+                }
+            }
+        }
+        item {
+            AppCard {
+                Text("Hintergrundbetrieb", style = MaterialTheme.typography.titleLarge)
+                StatusLine("Tracking", if (snapshot.active) "aktiv" else "nicht gestartet", if (snapshot.active) Light.GREEN else Light.GREY)
+                StatusLine("Live-API", if (snapshot.apiOk) "verbunden" else snapshot.apiMessage, if (snapshot.apiOk) Light.GREEN else Light.YELLOW)
+                StatusLine("App-Erkennung", if (listener) "freigegeben" else "Zugriff fehlt", if (listener) Light.GREEN else Light.YELLOW)
+                Spacer(Modifier.height(9.dp))
+                OutlinedButton(onClick = { activity.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }, modifier = Modifier.fillMaxWidth()) { Text("Benachrichtigungszugriff") }
+                OutlinedButton(onClick = { activity.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${activity.packageName}"))) }, modifier = Modifier.fillMaxWidth()) { Text("Android-App-Einstellungen") }
+            }
+        }
+        item {
+            AppCard {
+                Text("Reise-Apps", style = MaterialTheme.typography.titleLarge)
+                val maps = appPrefs.getBoolean("maps", false)
+                val coyote = appPrefs.getBoolean("coyote", false)
+                StatusLine("Google Maps", if (!listener) "unbekannt" else if (maps) "aktiv" else "nicht erkannt", if (!listener) Light.GREY else if (maps) Light.GREEN else Light.YELLOW)
+                StatusLine("Coyote Frankreich", if (!listener) "unbekannt" else if (coyote) "aktiv" else "nicht erkannt", if (!listener) Light.GREY else if (coyote) Light.GREEN else Light.YELLOW)
+                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    OutlinedButton(onClick = { activity.openPackage("com.google.android.apps.maps") }, modifier = Modifier.weight(1f)) { Text("Maps öffnen") }
+                    OutlinedButton(onClick = { activity.openPackage("com.coyotesystems.android") }, modifier = Modifier.weight(1f)) { Text("Coyote öffnen") }
+                }
+                Spacer(Modifier.height(7.dp))
+                Text("Die Blitzer-App wird nicht automatisch gestartet oder als Pflichtstatus überwacht.", color = Muted)
+            }
+        }
+    }
+}
