@@ -25,6 +25,7 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
     val prefs = remember { activity.getSharedPreferences("settings", Context.MODE_PRIVATE) }
     val diagnostics = remember { activity.getSharedPreferences("diagnostics", Context.MODE_PRIVATE) }
     var token by remember { mutableStateOf(prefs.getString("mapbox_token", "").orEmpty()) }
+    var tankerKey by remember { mutableStateOf(prefs.getString("tankerkoenig_key", "").orEmpty()) }
     var litres by remember { mutableStateOf(prefs.getFloat("start_litres", 60f).toString()) }
     var consumption by remember { mutableStateOf(prefs.getFloat("consumption", 7.4f).toString()) }
     var voice by remember { mutableStateOf(prefs.getBoolean("voice_alerts", true)) }
@@ -63,7 +64,7 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
             AppCard {
                 Text("Mapbox-Kartenzugang", style = MaterialTheme.typography.titleLarge)
                 Text(
-                    "Den vollständigen öffentlichen Token einfügen. Er beginnt mit pk.",
+                    "Der öffentliche Token liefert Live-Route, ETA, Verkehr und Mautdaten.",
                     color = Muted
                 )
                 Spacer(Modifier.height(10.dp))
@@ -96,6 +97,7 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
 
                         val saved = prefs.edit()
                             .putString("mapbox_token", clean)
+                            .putString("tankerkoenig_key", tankerKey.trim())
                             .putFloat("start_litres", litres.replace(',', '.').toFloatOrNull() ?: 60f)
                             .putFloat("consumption", consumption.replace(',', '.').toFloatOrNull() ?: 7.4f)
                             .putBoolean("voice_alerts", voice)
@@ -152,7 +154,7 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
 
         item {
             AppCard {
-                Text("Fahrzeug", style = MaterialTheme.typography.titleLarge)
+                Text("Fahrzeug und Tankplanung", style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     OutlinedTextField(
@@ -172,6 +174,26 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
                         singleLine = true
                     )
                 }
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = tankerKey,
+                    onValueChange = { tankerKey = it.trim() },
+                    label = { Text("Tankerkönig-Key · optional") },
+                    supportingText = {
+                        Text("Nur für deutsche Live-Preise. Frankreich und Spanien funktionieren ohne zusätzlichen Key.")
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
+                StatusLine("Frankreich", "offizielle Live-Preise · Autobahnstationen ausgeschlossen", Light.GREEN)
+                StatusLine("Spanien", "offizielle Live-Preise · Autobahnstationen herausgefiltert", Light.GREEN)
+                StatusLine(
+                    "Deutschland",
+                    if (tankerKey.trim().length >= 30) "Tankerkönig-Key vorhanden" else "ohne Key nur geplante Fallback-Stopps",
+                    if (tankerKey.trim().length >= 30) Light.GREEN else Light.YELLOW
+                )
+                StatusLine("Andorra", "sinnvolle Stationen, Preis vor Ort vergleichen", Light.GREY)
                 Row(
                     Modifier.fillMaxWidth().padding(top = 12.dp),
                     verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
@@ -185,6 +207,20 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
                         prefs.edit().putBoolean("voice_alerts", it).apply()
                     })
                 }
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        prefs.edit()
+                            .putString("tankerkoenig_key", tankerKey.trim())
+                            .putFloat("start_litres", litres.replace(',', '.').toFloatOrNull() ?: 60f)
+                            .putFloat("consumption", consumption.replace(',', '.').toFloatOrNull() ?: 7.4f)
+                            .putBoolean("voice_alerts", voice)
+                            .apply()
+                        activity.reloadTripConfig()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(13.dp)
+                ) { Text("Fahrzeug- und Tankdaten speichern") }
             }
         }
 
