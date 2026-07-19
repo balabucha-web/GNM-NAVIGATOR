@@ -10,6 +10,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import java.time.*
 import java.time.format.DateTimeFormatter
@@ -26,7 +27,15 @@ val Line = Color(0xFFE4E7EC)
 @Composable
 fun ReiseTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = lightColorScheme(primary = Blue, secondary = Green, background = Bg, surface = Color.White, onPrimary = Color.White, onSurface = Navy, outline = Line),
+        colorScheme = lightColorScheme(
+            primary = Blue,
+            secondary = Green,
+            background = Bg,
+            surface = Color.White,
+            onPrimary = Color.White,
+            onSurface = Navy,
+            outline = Line
+        ),
         typography = Typography(
             headlineLarge = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Black),
             headlineMedium = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
@@ -37,7 +46,9 @@ fun ReiseTheme(content: @Composable () -> Unit) {
     )
 }
 
-enum class AppTab(val title: String, val short: String) { LIVE("Live","L"), MAP("Karte","K"), PLAN("Plan","P"), BOOKING("Buchung","B"), MORE("Mehr","M") }
+enum class AppTab(val title: String, val short: String) {
+    LIVE("Live", "L"), MAP("Karte", "K"), PLAN("Plan", "P"), BOOKING("Buchung", "B"), MORE("Mehr", "M")
+}
 
 @Composable
 fun ReisePilotApp(activity: MainActivity, snapshot: TripSnapshot) {
@@ -51,11 +62,22 @@ fun ReisePilotApp(activity: MainActivity, snapshot: TripSnapshot) {
                         selected = tab == item,
                         onClick = { tab = item },
                         icon = {
-                            Box(Modifier.size(25.dp).background(if (tab == item) Blue else Color(0xFFE9EEF3), CircleShape), contentAlignment = Alignment.Center) {
-                                Text(item.short, color = if (tab == item) Color.White else Muted, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Box(
+                                Modifier.size(25.dp).background(
+                                    if (tab == item) Blue else Color(0xFFE9EEF3),
+                                    CircleShape
+                                ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    item.short,
+                                    color = if (tab == item) Color.White else Muted,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
                             }
                         },
-                        label = { Text(item.title) }
+                        label = { Text(item.title, maxLines = 1) }
                     )
                 }
             }
@@ -73,51 +95,123 @@ fun ReisePilotApp(activity: MainActivity, snapshot: TripSnapshot) {
 
 @Composable
 fun Page(title: String, subtitle: String, modifier: Modifier, content: LazyListScope.() -> Unit) {
-    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { Text(title, style = MaterialTheme.typography.headlineMedium); Text(subtitle, color = Muted, fontSize = 13.sp) }
-        content(); item { Spacer(Modifier.height(12.dp)) }
+    LazyColumn(
+        modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text(title, style = MaterialTheme.typography.headlineMedium)
+            Text(subtitle, color = Muted, fontSize = 13.sp)
+        }
+        content()
+        item { Spacer(Modifier.height(12.dp)) }
     }
 }
 
 @Composable
 fun AppCard(content: @Composable ColumnScope.() -> Unit) {
-    Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Line)) {
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Line)
+    ) {
         Column(Modifier.fillMaxWidth().padding(16.dp), content = content)
     }
 }
 
 @Composable
 fun Lamp(light: Light, size: Dp) {
-    Box(Modifier.size(size).background(statusColor(light), CircleShape).border(3.dp, Color.White.copy(alpha = .35f), CircleShape))
+    Box(
+        Modifier.size(size)
+            .background(statusColor(light), CircleShape)
+            .border(3.dp, Color.White.copy(alpha = .35f), CircleShape)
+    )
 }
 
 @Composable
 fun Metric(label: String, value: String, light: Light, modifier: Modifier) {
-    Card(modifier, shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Line)) {
+    Card(
+        modifier,
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Line)
+    ) {
         Column(Modifier.padding(15.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) { Lamp(light, 12.dp); Spacer(Modifier.width(7.dp)); Text(label, color = Muted, fontSize = 12.sp) }
-            Spacer(Modifier.height(7.dp)); Text(value, fontSize = 23.sp, fontWeight = FontWeight.Black)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Lamp(light, 12.dp)
+                Spacer(Modifier.width(7.dp))
+                Text(label, color = Muted, fontSize = 12.sp, maxLines = 1)
+            }
+            Spacer(Modifier.height(7.dp))
+            Text(value, fontSize = 23.sp, fontWeight = FontWeight.Black, maxLines = 1)
         }
     }
 }
 
+/**
+ * Always places the value below the label. Long API messages can therefore never squeeze
+ * the label into one-character-wide vertical text on narrow phones.
+ */
 @Composable
 fun StatusLine(label: String, value: String, light: Light) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-        Lamp(light, 13.dp); Spacer(Modifier.width(9.dp)); Text(label, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f)); Text(value, color = Muted)
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 9.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Lamp(light, 13.dp)
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(label, fontWeight = FontWeight.Bold, maxLines = 1)
+            Spacer(Modifier.height(2.dp))
+            Text(
+                value,
+                color = Muted,
+                fontSize = 14.sp,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
 @Composable
 fun WarningCard(title: String, text: String, light: Light) {
     val color = statusColor(light)
-    Card(colors = CardDefaults.cardColors(containerColor = color.copy(alpha = .10f)), border = BorderStroke(1.dp, color.copy(alpha = .25f)), shape = RoundedCornerShape(18.dp)) {
-        Row(Modifier.padding(15.dp), verticalAlignment = Alignment.Top) { Lamp(light, 16.dp); Spacer(Modifier.width(10.dp)); Column { Text(title, fontWeight = FontWeight.Bold, color = color); Text(text) } }
+    Card(
+        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = .10f)),
+        border = BorderStroke(1.dp, color.copy(alpha = .25f)),
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Row(Modifier.padding(15.dp), verticalAlignment = Alignment.Top) {
+            Lamp(light, 16.dp)
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, fontWeight = FontWeight.Bold, color = color)
+                Spacer(Modifier.height(3.dp))
+                Text(text)
+            }
+        }
     }
 }
 
-fun statusColor(light: Light) = when (light) { Light.GREEN -> Green; Light.YELLOW -> Yellow; Light.RED -> Red; Light.GREY -> Color(0xFF98A2B3) }
-fun lightText(light: Light) = when (light) { Light.GREEN -> "planmäßig"; Light.YELLOW -> "knapp"; Light.RED -> "Abweichung"; Light.GREY -> "unbekannt" }
-fun formatTime(epoch: Long) = Instant.ofEpochMilli(epoch).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("HH:mm"))
+fun statusColor(light: Light) = when (light) {
+    Light.GREEN -> Green
+    Light.YELLOW -> Yellow
+    Light.RED -> Red
+    Light.GREY -> Color(0xFF98A2B3)
+}
+
+fun lightText(light: Light) = when (light) {
+    Light.GREEN -> "planmäßig"
+    Light.YELLOW -> "knapp"
+    Light.RED -> "Abweichung"
+    Light.GREY -> "unbekannt"
+}
+
+fun formatTime(epoch: Long) = Instant.ofEpochMilli(epoch)
+    .atZone(ZoneId.systemDefault())
+    .format(DateTimeFormatter.ofPattern("HH:mm"))
+
 fun minuteText(minutes: Int) = "${minutes / 60}:${(minutes % 60).toString().padStart(2, '0')}"
 fun distanceText(m: Int) = if (m < 1000) "$m m" else "${"%.1f".format(m / 1000.0)} km"
