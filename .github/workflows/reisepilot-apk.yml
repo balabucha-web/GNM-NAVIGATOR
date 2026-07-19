@@ -1,0 +1,35 @@
+name: Build ReisePilot APK
+
+on:
+  push:
+    branches:
+      - reisepilot-live-v3
+    paths:
+      - 'reisepilot/**'
+      - '.github/workflows/reisepilot-apk.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: reisepilot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+      - name: Build debug APK
+        run: gradle :app:assembleDebug --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ReisePilot-Live-v3-APK
+          path: reisepilot/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
