@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "de.balabucha.reisepilot"
-        minSdk = 26
+        minSdk = 27
         targetSdk = 37
         versionCode = 6
         versionName = "3.3"
