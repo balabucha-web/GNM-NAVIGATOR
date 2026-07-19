@@ -43,6 +43,40 @@ data class TollPoint(
     }
 }
 
+data class FuelSuggestion(
+    val name: String,
+    val address: String,
+    val point: GeoPoint,
+    val pricePerLitre: Double? = null,
+    val detourKm: Double,
+    val distanceAheadKm: Double,
+    val source: String,
+    val updatedAt: String = ""
+) {
+    fun json(): JSONObject = JSONObject()
+        .put("name", name)
+        .put("address", address)
+        .put("point", point.json())
+        .put("pricePerLitre", pricePerLitre ?: JSONObject.NULL)
+        .put("detourKm", detourKm)
+        .put("distanceAheadKm", distanceAheadKm)
+        .put("source", source)
+        .put("updatedAt", updatedAt)
+
+    companion object {
+        fun fromJson(j: JSONObject) = FuelSuggestion(
+            name = j.optString("name", "Tankstelle"),
+            address = j.optString("address"),
+            point = GeoPoint.fromJson(j.getJSONObject("point")),
+            pricePerLitre = if (j.isNull("pricePerLitre")) null else j.optDouble("pricePerLitre"),
+            detourKm = j.optDouble("detourKm"),
+            distanceAheadKm = j.optDouble("distanceAheadKm"),
+            source = j.optString("source"),
+            updatedAt = j.optString("updatedAt")
+        )
+    }
+}
+
 data class TripSnapshot(
     val active: Boolean = false,
     val paused: Boolean = false,
@@ -61,6 +95,7 @@ data class TripSnapshot(
     val pauseLight: Light = Light.GREEN,
     val fuelLight: Light = Light.GREEN,
     val fuelLitres: Double = 60.0,
+    val fuelSuggestion: FuelSuggestion? = null,
     val nextTitle: String = "Bereit",
     val nextDetail: String = "Fahrt starten",
     val nextDistanceM: Int? = null,
@@ -90,6 +125,7 @@ data class TripSnapshot(
             .put("pauseLight", pauseLight.name)
             .put("fuelLight", fuelLight.name)
             .put("fuelLitres", fuelLitres)
+            .put("fuelSuggestion", fuelSuggestion?.json() ?: JSONObject.NULL)
             .put("nextTitle", nextTitle).put("nextDetail", nextDetail)
             .put("nextDistanceM", nextDistanceM ?: JSONObject.NULL)
             .put("routeGeoJson", routeGeoJson)
@@ -129,6 +165,7 @@ data class TripSnapshot(
                     pauseLight = runCatching { Light.valueOf(j.optString("pauseLight")) }.getOrDefault(Light.GREEN),
                     fuelLight = runCatching { Light.valueOf(j.optString("fuelLight")) }.getOrDefault(Light.GREEN),
                     fuelLitres = j.optDouble("fuelLitres", 60.0),
+                    fuelSuggestion = if (j.isNull("fuelSuggestion")) null else FuelSuggestion.fromJson(j.getJSONObject("fuelSuggestion")),
                     nextTitle = j.optString("nextTitle", "Bereit"),
                     nextDetail = j.optString("nextDetail", "Fahrt starten"),
                     nextDistanceM = if (j.isNull("nextDistanceM")) null else j.getInt("nextDistanceM"),
