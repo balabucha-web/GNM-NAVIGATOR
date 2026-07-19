@@ -7,6 +7,12 @@ on:
     paths:
       - 'reisepilot/**'
       - '.github/workflows/reisepilot-apk.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'reisepilot/**'
+      - '.github/workflows/reisepilot-apk.yml'
   workflow_dispatch:
 
 jobs:
