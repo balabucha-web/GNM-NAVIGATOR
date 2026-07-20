@@ -24,8 +24,11 @@ class ReisePilotUserFlowTest {
     @get:Rule(order = 1)
     val compose = createAndroidComposeRule<MainActivity>()
 
+    private fun clickableText(label: String): SemanticsMatcher =
+        hasText(label) and hasClickAction()
+
     private fun clickTab(label: String) {
-        compose.onNodeWithText(label, useUnmergedTree = true).performClick()
+        compose.onNode(clickableText(label), useUnmergedTree = true).performClick()
         compose.waitForIdle()
     }
 
@@ -69,45 +72,50 @@ class ReisePilotUserFlowTest {
         compose.waitForIdle()
 
         clickTab("Entdecken")
-        compose.onNodeWithText("Entdecken").assertIsDisplayed()
+        compose.onNodeWithText("Ziel suchen").assertIsDisplayed()
         swipeUp(16)
-        compose.onNodeWithText("Entdecken").assertExists()
-        swipeDown(16)
-        compose.onNodeWithText("Entdecken").assertIsDisplayed()
+        clickTab("Route")
+        compose.onNodeWithText("Live-Karte").assertIsDisplayed()
+        clickTab("Entdecken")
+        compose.onNodeWithText("Ziel suchen").assertIsDisplayed()
 
         findByScrolling("Strand & Promenade Canet")
         compose.onNodeWithText("Strand & Promenade Canet").performClick()
         compose.onNodeWithText("Route in Google Maps").assertIsDisplayed()
         Thread.sleep(2_000)
         compose.onNodeWithText("Zurück zur Liste").performClick()
-        compose.onNodeWithText("Entdecken").assertIsDisplayed()
+        compose.onNode(clickableText("Entdecken"), useUnmergedTree = true).assertExists()
 
         clickTab("Mehr")
         compose.onNodeWithText("Reiseplan").assertIsDisplayed()
         compose.onNodeWithText("Buchungen").assertIsDisplayed()
+        findByScrolling("Technische Einstellungen")
         compose.onNodeWithText("Technische Einstellungen").performClick()
         compose.onNodeWithText("Mapbox-Kartenzugang").assertIsDisplayed()
         compose.activity.onBackPressedDispatcher.onBackPressed()
         compose.waitForIdle()
-        compose.onNodeWithText("Reiseplan").assertIsDisplayed()
+        compose.onNodeWithText("System und Fahrzeug").assertIsDisplayed()
     }
 
     @Test
     fun destinationList_survivesHeavyScrollingAndFiltering() {
         clickTab("Entdecken")
-        compose.onNodeWithText("Entdecken").assertIsDisplayed()
+        compose.onNodeWithText("Ziel suchen").assertIsDisplayed()
         repeat(4) {
             swipeUp(12)
             swipeDown(12)
         }
-        compose.onNodeWithText("Entdecken").assertIsDisplayed()
+        clickTab("Route")
+        compose.onNodeWithText("Live-Karte").assertIsDisplayed()
+        clickTab("Entdecken")
 
-        compose.onNodeWithText("Barcelona", useUnmergedTree = true).performClick()
+        compose.onNode(clickableText("Barcelona"), useUnmergedTree = true).performClick()
         compose.waitForIdle()
         repeat(3) {
             swipeUp(10)
             swipeDown(10)
         }
-        compose.onNodeWithText("Entdecken").assertIsDisplayed()
+        clickTab("Route")
+        compose.onNodeWithText("Live-Karte").assertIsDisplayed()
     }
 }
