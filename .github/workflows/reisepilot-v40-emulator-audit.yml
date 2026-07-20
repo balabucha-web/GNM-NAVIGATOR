@@ -1,4 +1,4 @@
-name: ReisePilot 4.1 Emulator Audit
+name: ReisePilot 4.2 Emulator Audit
 
 on:
   push:
@@ -30,7 +30,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
-      - name: Apply guarded 4.1 migration when required
+      - name: Apply guarded migration when required
         working-directory: reisepilot
         run: |
           set -euo pipefail
@@ -40,6 +40,9 @@ jobs:
           fi
           if [ -f scripts/apply_v41_hotfix.py ]; then
             python3 scripts/apply_v41_hotfix.py
+          fi
+          if [ -f scripts/apply_v42_upgrade.py ]; then
+            python3 scripts/apply_v42_upgrade.py
           fi
       - name: Compile app and emulator tests first
         run: |
@@ -75,7 +78,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-v4.1-emulator-audit
+          name: ReisePilot-v4.2-emulator-audit
           path: |
             reisepilot/emulator-summary.txt
             reisepilot/emulator-compile.log
