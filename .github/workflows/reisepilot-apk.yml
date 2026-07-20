@@ -54,6 +54,10 @@ jobs:
             python3 scripts/apply_v44_upgrade.py
             rm scripts/apply_v44_upgrade.py
           fi
+          if [ -f scripts/apply_destination_test_tags.py ]; then
+            python3 scripts/apply_destination_test_tags.py
+            rm scripts/apply_destination_test_tags.py
+          fi
       - name: Commit migrated sources to release branch
         if: github.event_name == 'push'
         run: |
@@ -74,6 +78,7 @@ jobs:
           root = Path('app/src/main/java/de/balabucha/reisepilot')
           required = {
               'DiscoverData.kt': ['distanceKm <= region.radiusKm'],
+              'DiscoverScreen.kt': ['destinationCardTag(place)', 'testTag'],
               'FuelPriceClient.kt': ['CountryResolver', 'Fahrumweg geprüft', 'MotorwayFilter'],
               'TripTrackingService.kt': ['sessionId != requestSession', 'val newlyCrossed = crossed.filter'],
               'NativeTripMap.kt': ['tiles.openfreemap.org/styles/liberty', 'fun dispose()', '€/l'],
