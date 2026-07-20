@@ -42,6 +42,10 @@ jobs:
             python3 /tmp/apply_v41_fixes.py
             rm scripts/apply_v41_fixes.py.gz.b64
           fi
+          if [ -f scripts/apply_v41_hotfix.py ]; then
+            python3 scripts/apply_v41_hotfix.py
+            rm scripts/apply_v41_hotfix.py
+          fi
       - name: Commit migrated sources to release branch
         if: github.event_name == 'push'
         run: |
