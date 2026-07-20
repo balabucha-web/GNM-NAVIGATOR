@@ -11,8 +11,8 @@ android {
         applicationId = "de.balabucha.reisepilot"
         minSdk = 27
         targetSdk = 37
-        versionCode = 7
-        versionName = "3.4"
+        versionCode = 8
+        versionName = "4.0"
     }
 
     buildFeatures {
