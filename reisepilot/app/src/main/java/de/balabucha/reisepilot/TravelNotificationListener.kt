@@ -10,22 +10,11 @@ class TravelNotificationListener : NotificationListenerService() {
     override fun onNotificationRemoved(sbn: StatusBarNotification?) = scan()
 
     private fun scan() {
-        var maps = false
-        var coyote = false
-        var blitzer = false
-        runCatching {
-            activeNotifications.forEach {
-                when (it.packageName) {
-                    "com.google.android.apps.maps" -> maps = true
-                    "com.coyotesystems.android" -> coyote = true
-                    "de.blitzer.plus", "de.blitzer" -> blitzer = true
-                }
-            }
-        }
+        val maps = runCatching {
+            activeNotifications.any { it.packageName == "com.google.android.apps.maps" }
+        }.getOrDefault(false)
         getSharedPreferences("app_status", MODE_PRIVATE).edit()
             .putBoolean("maps", maps)
-            .putBoolean("coyote", coyote)
-            .putBoolean("blitzer", blitzer)
             .apply()
         sendBroadcast(Intent(TripTrackingService.ACTION_UPDATE).apply {
             setPackage(packageName)

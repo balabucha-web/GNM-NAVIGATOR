@@ -28,7 +28,7 @@ import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 
-private const val BASE_STYLE = "https://demotiles.maplibre.org/style.json"
+private const val BASE_STYLE = "https://tiles.openfreemap.org/styles/liberty"
 
 @Composable
 fun NativeTripMap(
@@ -38,25 +38,15 @@ fun NativeTripMap(
 ) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    val controller = remember { NativeMapController(context) }
+    val controller = remember(context) { NativeMapController(context) }
 
     DisposableEffect(lifecycle, controller) {
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_START -> controller.mapView.onStart()
-                Lifecycle.Event.ON_RESUME -> controller.mapView.onResume()
-                Lifecycle.Event.ON_PAUSE -> controller.mapView.onPause()
-                Lifecycle.Event.ON_STOP -> controller.mapView.onStop()
-                Lifecycle.Event.ON_DESTROY -> controller.mapView.onDestroy()
-                else -> Unit
-            }
-        }
+        val observer = LifecycleEventObserver { _, event -> controller.onLifecycle(event) }
         lifecycle.addObserver(observer)
+        controller.sync(lifecycle.currentState)
         onDispose {
             lifecycle.removeObserver(observer)
-            controller.mapView.onPause()
-            controller.mapView.onStop()
-            controller.mapView.onDestroy()
+            controller.dispose()
         }
     }
 
@@ -74,29 +64,94 @@ private class NativeMapController(context: Context) {
     private var latestSnapshot = TripSnapshot()
     private var latestPreview: RouteResult? = null
     private var lastCameraKey = ""
+    private var started = false
+    private var resumed = false
+    private var destroyed = false
 
     init {
         MapLibre.getInstance(context.applicationContext)
         mapView = MapView(context)
         mapView.onCreate(Bundle())
         mapView.getMapAsync { readyMap ->
+            if (destroyed) return@getMapAsync
             map = readyMap
             readyMap.uiSettings.isLogoEnabled = true
             readyMap.uiSettings.isAttributionEnabled = true
             readyMap.setStyle(Style.Builder().fromUri(BASE_STYLE)) { readyStyle ->
+                if (destroyed) return@setStyle
                 style = readyStyle
                 render()
             }
         }
     }
 
+    fun sync(state: Lifecycle.State) {
+        if (destroyed) return
+        if (state.isAtLeast(Lifecycle.State.STARTED)) start()
+        if (state.isAtLeast(Lifecycle.State.RESUMED)) resume()
+    }
+
+    fun onLifecycle(event: Lifecycle.Event) {
+        when (event) {
+            Lifecycle.Event.ON_START -> start()
+            Lifecycle.Event.ON_RESUME -> resume()
+            Lifecycle.Event.ON_PAUSE -> pause()
+            Lifecycle.Event.ON_STOP -> stop()
+            Lifecycle.Event.ON_DESTROY -> dispose()
+            else -> Unit
+        }
+    }
+
+    private fun start() {
+        if (!destroyed && !started) {
+            mapView.onStart()
+            started = true
+        }
+    }
+
+    private fun resume() {
+        if (destroyed) return
+        start()
+        if (!resumed) {
+            mapView.onResume()
+            resumed = true
+        }
+    }
+
+    private fun pause() {
+        if (!destroyed && resumed) {
+            mapView.onPause()
+            resumed = false
+        }
+    }
+
+    private fun stop() {
+        if (destroyed) return
+        pause()
+        if (started) {
+            mapView.onStop()
+            started = false
+        }
+    }
+
+    fun dispose() {
+        if (destroyed) return
+        stop()
+        destroyed = true
+        style = null
+        map = null
+        mapView.onDestroy()
+    }
+
     fun update(snapshot: TripSnapshot, preview: RouteResult?) {
+        if (destroyed) return
         latestSnapshot = snapshot
         latestPreview = preview
         render()
     }
 
     private fun render() {
+        if (destroyed) return
         val style = style ?: return
         val route = routePoints()
         val congestion = congestionLevels(route.size)
@@ -127,9 +182,7 @@ private class NativeMapController(context: Context) {
         upsertLine(style, "route-severe", byLevel.getValue("severe"), Color.rgb(180, 35, 24), 7f)
         upsertLine(style, "route-unknown", byLevel.getValue("unknown"), Color.rgb(23, 107, 135), 5f)
 
-        val current = latestSnapshot.lat?.let { lat ->
-            latestSnapshot.lon?.let { lon -> GeoPoint(lat, lon) }
-        }
+        val current = latestSnapshot.lat?.let { lat -> latestSnapshot.lon?.let { lon -> GeoPoint(lat, lon) } }
         val tolls = latestSnapshot.tolls.ifEmpty { latestPreview?.tolls.orEmpty() }
         val fallbackFuels = TripConfig.fuelStops(latestSnapshot.stage)
         val recommendedFuel = latestSnapshot.fuelSuggestion?.point
@@ -137,13 +190,7 @@ private class NativeMapController(context: Context) {
         upsertPoints(style, "point-current", current?.let(::listOf).orEmpty(), Color.rgb(23, 107, 135), 8f)
         upsertPoints(style, "point-tolls", tolls.map { it.point }, Color.rgb(183, 121, 0), 7f)
         upsertPoints(style, "point-fallback-fuels", fallbackFuels, Color.rgb(84, 151, 116), 6f)
-        upsertPoints(
-            style,
-            "point-recommended-fuel",
-            recommendedFuel?.let(::listOf).orEmpty(),
-            Color.rgb(0, 158, 96),
-            11f
-        )
+        upsertPoints(style, "point-recommended-fuel", recommendedFuel?.let(::listOf).orEmpty(), Color.rgb(0, 158, 96), 11f)
         upsertPoints(
             style,
             "point-ends",
@@ -155,11 +202,7 @@ private class NativeMapController(context: Context) {
         val cameraKey = "${latestSnapshot.stage}:${route.firstOrNull()?.lat}:${route.lastOrNull()?.lat}:${route.size}"
         if (cameraKey != lastCameraKey) {
             lastCameraKey = cameraKey
-            fitCamera(
-                route.ifEmpty {
-                    listOf(TripConfig.origin(latestSnapshot.stage), TripConfig.destination(latestSnapshot.stage))
-                }
-            )
+            fitCamera(route.ifEmpty { listOf(TripConfig.origin(latestSnapshot.stage), TripConfig.destination(latestSnapshot.stage)) })
         }
     }
 
@@ -174,24 +217,13 @@ private class NativeMapController(context: Context) {
     }
 
     private fun congestionLevels(pointCount: Int): List<String> {
-        val raw = if (latestSnapshot.routeGeoJson.isNotBlank()) {
-            latestSnapshot.congestionJson
-        } else {
-            latestPreview?.congestionJson ?: "[]"
-        }
+        val raw = if (latestSnapshot.routeGeoJson.isNotBlank()) latestSnapshot.congestionJson
+        else latestPreview?.congestionJson ?: "[]"
         val array = runCatching { JSONArray(raw) }.getOrDefault(JSONArray())
-        return List((pointCount - 1).coerceAtLeast(0)) { index ->
-            array.optString(index, "unknown")
-        }
+        return List((pointCount - 1).coerceAtLeast(0)) { index -> array.optString(index, "unknown") }
     }
 
-    private fun upsertLine(
-        style: Style,
-        id: String,
-        features: List<Feature>,
-        color: Int,
-        width: Float
-    ) {
+    private fun upsertLine(style: Style, id: String, features: List<Feature>, color: Int, width: Float) {
         val sourceId = "$id-source"
         val layerId = "$id-layer"
         val collection = FeatureCollection.fromFeatures(features)
@@ -200,54 +232,33 @@ private class NativeMapController(context: Context) {
             style.addSource(GeoJsonSource(sourceId, collection))
             style.addLayer(
                 LineLayer(layerId, sourceId).withProperties(
-                    lineColor(color),
-                    lineWidth(width),
-                    lineOpacity(0.92f),
-                    lineCap(Property.LINE_CAP_ROUND),
-                    lineJoin(Property.LINE_JOIN_ROUND)
+                    lineColor(color), lineWidth(width), lineOpacity(0.92f),
+                    lineCap(Property.LINE_CAP_ROUND), lineJoin(Property.LINE_JOIN_ROUND)
                 )
             )
-        } else {
-            source.setGeoJson(collection)
-        }
+        } else source.setGeoJson(collection)
     }
 
-    private fun upsertPoints(
-        style: Style,
-        id: String,
-        points: List<GeoPoint>,
-        color: Int,
-        radius: Float
-    ) {
+    private fun upsertPoints(style: Style, id: String, points: List<GeoPoint>, color: Int, radius: Float) {
         val sourceId = "$id-source"
         val layerId = "$id-layer"
-        val features = points.map { point ->
-            Feature.fromGeometry(Point.fromLngLat(point.lon, point.lat))
-        }
-        val collection = FeatureCollection.fromFeatures(features)
+        val collection = FeatureCollection.fromFeatures(points.map { Feature.fromGeometry(Point.fromLngLat(it.lon, it.lat)) })
         val source = style.getSourceAs<GeoJsonSource>(sourceId)
         if (source == null) {
             style.addSource(GeoJsonSource(sourceId, collection))
             style.addLayer(
                 CircleLayer(layerId, sourceId).withProperties(
-                    circleColor(color),
-                    circleRadius(radius),
-                    circleStrokeColor(Color.WHITE),
-                    circleStrokeWidth(3f)
+                    circleColor(color), circleRadius(radius), circleStrokeColor(Color.WHITE), circleStrokeWidth(3f)
                 )
             )
-        } else {
-            source.setGeoJson(collection)
-        }
+        } else source.setGeoJson(collection)
     }
 
     private fun fitCamera(points: List<GeoPoint>) {
         val map = map ?: return
-        if (points.isEmpty()) return
+        if (destroyed || points.isEmpty()) return
         val builder = LatLngBounds.Builder()
         points.forEach { builder.include(LatLng(it.lat, it.lon)) }
-        runCatching {
-            map.animateCamera(CameraUpdateFactory.newLatLngBounds(builder.build(), 90), 650)
-        }
+        runCatching { map.animateCamera(CameraUpdateFactory.newLatLngBounds(builder.build(), 90), 650) }
     }
 }

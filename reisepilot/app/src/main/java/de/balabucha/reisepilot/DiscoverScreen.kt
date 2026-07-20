@@ -30,14 +30,14 @@ fun DiscoverScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Mod
     val automaticRegion = remember(location?.lat, location?.lon) {
         DestinationCatalog.nearestRegion(location)
     }
-    var selectedRegion by rememberSaveable { mutableStateOf(automaticRegion) }
+    var selectedRegion by rememberSaveable { mutableStateOf(automaticRegion ?: TravelRegion.CANET) }
     var followLocation by rememberSaveable { mutableStateOf(true) }
     var kind by rememberSaveable { mutableStateOf<PlaceKind?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
     var selectedPlace by remember { mutableStateOf<TravelPlace?>(null) }
 
     LaunchedEffect(automaticRegion) {
-        if (followLocation) selectedRegion = automaticRegion
+        if (followLocation && automaticRegion != null) selectedRegion = automaticRegion
     }
 
     val places = remember(selectedRegion, kind, query, followLocation, location?.lat, location?.lon) {
@@ -64,7 +64,7 @@ fun DiscoverScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Mod
                 followLocation = followLocation,
                 onAuto = {
                     followLocation = true
-                    selectedRegion = automaticRegion
+                    automaticRegion?.let { selectedRegion = it }
                     kind = null
                     query = ""
                 }
@@ -186,7 +186,7 @@ fun DiscoverScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Mod
 @Composable
 private fun RegionControl(
     selectedRegion: TravelRegion,
-    automaticRegion: TravelRegion,
+    automaticRegion: TravelRegion?,
     locationAvailable: Boolean,
     followLocation: Boolean,
     onAuto: () -> Unit
@@ -200,7 +200,8 @@ private fun RegionControl(
                 Text(
                     when {
                         !locationAvailable -> "Ohne Tracking ist Canet die Startregion. Region jederzeit manuell wählen."
-                        followLocation -> "Automatisch nach Standort · erkannt: ${automaticRegion.label}"
+                        followLocation && automaticRegion != null -> "Automatisch nach Standort · erkannt: ${automaticRegion.label}"
+                        followLocation -> "Unterwegs · keine Urlaubsregion im Umkreis erkannt. Auswahl bleibt manuell nutzbar."
                         else -> "Manuell gewählt · automatische Standortauswahl pausiert"
                     },
                     color = Muted,

@@ -14,6 +14,9 @@ class MainActivity : ComponentActivity() {
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             intent?.getStringExtra("snapshot")?.let { snapshot = TripSnapshot.fromJson(it) }
+            if (intent?.getBooleanExtra("appsChanged", false) == true) {
+                snapshot = snapshot.copy(lastUpdatedEpochMs = System.currentTimeMillis())
+            }
         }
     }
 

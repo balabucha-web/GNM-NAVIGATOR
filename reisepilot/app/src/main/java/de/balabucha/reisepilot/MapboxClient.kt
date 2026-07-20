@@ -16,30 +16,21 @@ data class RouteResult(
     val tolls: List<TollPoint>
 )
 
+data class DetourRouteResult(
+    val totalDistanceM: Int,
+    val distanceToStopM: Int
+)
+
 object MapboxClient {
     fun route(token: String, origin: GeoPoint, destination: GeoPoint): RouteResult {
         require(token.startsWith("pk.")) { "Öffentlicher Mapbox-Token erforderlich" }
         val coords = "${origin.lon},${origin.lat};${destination.lon},${destination.lat}"
-        val url = URL(
-            "https://api.mapbox.com/directions/v5/mapbox/driving-traffic/$coords" +
-                "?alternatives=false&steps=true&geometries=geojson&overview=full" +
-                "&annotations=congestion,distance,duration&language=de" +
-                "&access_token=${URLEncoder.encode(token, "UTF-8")}"
+        val root = request(
+            token,
+            coords,
+            "alternatives=false&steps=true&geometries=geojson&overview=full" +
+                "&annotations=congestion,distance,duration&language=de"
         )
-        val conn = (url.openConnection() as HttpURLConnection).apply {
-            connectTimeout = 12_000
-            readTimeout = 18_000
-            requestMethod = "GET"
-            setRequestProperty("Accept", "application/json")
-        }
-        val code = conn.responseCode
-        val body = (if (code in 200..299) conn.inputStream else conn.errorStream)
-            .bufferedReader().use { it.readText() }
-        if (code !in 200..299) {
-            val msg = runCatching { JSONObject(body).optString("message") }.getOrDefault(body)
-            error("Mapbox $code: $msg")
-        }
-        val root = JSONObject(body)
         val route = root.getJSONArray("routes").getJSONObject(0)
         val geometryObj = route.getJSONObject("geometry")
         val coordsArray = geometryObj.getJSONArray("coordinates")
@@ -78,5 +69,49 @@ object MapboxClient {
             geometry = geometry,
             tolls = tolls
         )
+    }
+
+    fun detourRoute(
+        token: String,
+        current: GeoPoint,
+        stop: GeoPoint,
+        destination: GeoPoint
+    ): DetourRouteResult {
+        require(token.startsWith("pk.")) { "Öffentlicher Mapbox-Token erforderlich" }
+        val coords = "${current.lon},${current.lat};${stop.lon},${stop.lat};${destination.lon},${destination.lat}"
+        val root = request(
+            token,
+            coords,
+            "alternatives=false&steps=false&geometries=geojson&overview=false&language=de"
+        )
+        val route = root.getJSONArray("routes").getJSONObject(0)
+        val legs = route.getJSONArray("legs")
+        require(legs.length() >= 2) { "Tankumweg konnte nicht aufgeteilt werden" }
+        return DetourRouteResult(
+            totalDistanceM = route.getDouble("distance").toInt(),
+            distanceToStopM = legs.getJSONObject(0).getDouble("distance").toInt()
+        )
+    }
+
+    private fun request(token: String, coords: String, options: String): JSONObject {
+        val url = URL(
+            "https://api.mapbox.com/directions/v5/mapbox/driving-traffic/$coords" +
+                "?$options&access_token=${URLEncoder.encode(token, "UTF-8")}"
+        )
+        val conn = (url.openConnection() as HttpURLConnection).apply {
+            connectTimeout = 12_000
+            readTimeout = 18_000
+            requestMethod = "GET"
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("User-Agent", "ReisePilot/4.1 Android")
+        }
+        val code = conn.responseCode
+        val body = (if (code in 200..299) conn.inputStream else conn.errorStream)
+            .bufferedReader().use { it.readText() }
+        if (code !in 200..299) {
+            val msg = runCatching { JSONObject(body).optString("message") }.getOrDefault(body)
+            error("Mapbox $code: $msg")
+        }
+        return JSONObject(body)
     }
 }

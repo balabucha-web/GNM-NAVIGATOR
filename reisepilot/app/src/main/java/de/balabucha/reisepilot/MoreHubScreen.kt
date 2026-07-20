@@ -6,19 +6,21 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
 fun MoreHubScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifier) {
-    var technical by rememberSaveableCompat { mutableStateOf(false) }
+    var technical by rememberSaveable { mutableStateOf(false) }
     if (technical) {
         BackHandler { technical = false }
         Box(modifier.fillMaxSize()) {
-            MoreScreen(activity, snapshot, Modifier.fillMaxSize())
+            MoreScreen(activity, snapshot, Modifier.fillMaxSize().testTag("technical-settings-screen"))
             SmallFloatingActionButton(
                 onClick = { technical = false },
                 containerColor = Navy,
@@ -54,7 +56,7 @@ fun MoreHubScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modi
                 Spacer(Modifier.height(10.dp))
                 Button(
                     onClick = { technical = true },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag("technical-settings-button"),
                     shape = RoundedCornerShape(13.dp)
                 ) { Text("Technische Einstellungen") }
             }
@@ -153,5 +155,3 @@ private fun BookingLine(
     }
 }
 
-@Composable
-private fun <T> rememberSaveableCompat(init: () -> MutableState<T>): MutableState<T> = remember { init() }

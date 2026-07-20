@@ -61,6 +61,9 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
     private var distanceKm = 0.0
     private var fuelSuggestion: FuelSuggestion? = null
     private var snapshot = TripSnapshot()
+    private var sessionId = System.nanoTime()
+    private var routeRequestId = 0L
+    private var fuelRequestId = 0L
 
     private val announced = mutableSetOf<String>()
     private val previousDistance = mutableMapOf<String, Double>()
@@ -124,6 +127,9 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
 
     private fun start(newStage: Stage) {
         stage = newStage
+        sessionId = System.nanoTime()
+        routeRequestId = 0L
+        fuelRequestId = 0L
         active = true
         paused = false
         startedAt = System.currentTimeMillis()
@@ -148,6 +154,8 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
     }
 
     private fun reloadConfig() {
+        routeRequestId++
+        fuelRequestId++
         routeUpdatedAt = 0L
         fuelUpdatedAt = 0L
         lastLocation?.let {
@@ -227,21 +235,27 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
         }
         routeUpdatedAt = System.currentTimeMillis()
         lastRouteLocation = Location(location)
+        val requestSession = sessionId
+        val requestStage = stage
+        val requestId = ++routeRequestId
+        val requestLocation = Location(location)
         worker.execute {
-            runCatching {
+            val outcome = runCatching {
                 MapboxClient.route(
                     token,
-                    GeoPoint(location.latitude, location.longitude),
-                    TripConfig.destination(stage)
+                    GeoPoint(requestLocation.latitude, requestLocation.longitude),
+                    TripConfig.destination(requestStage)
                 )
-            }.onSuccess { result ->
-                route = result
-                main.post {
-                    maybeRefreshFuel(location, force = true)
-                    recalculate()
+            }
+            main.post {
+                if (!active || sessionId != requestSession || stage != requestStage || routeRequestId != requestId) {
+                    return@post
                 }
-            }.onFailure {
-                main.post {
+                outcome.onSuccess { result ->
+                    route = result
+                    maybeRefreshFuel(requestLocation, force = true)
+                    recalculate()
+                }.onFailure {
                     val msg = it.message ?: "Live-Route nicht verfügbar"
                     recordError("Mapbox: $msg")
                     snapshot = snapshot.copy(apiOk = false, apiMessage = msg.take(140))
@@ -260,7 +274,6 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
         val moved = lastFuelLocation?.distanceTo(location) ?: Float.MAX_VALUE
         val due = System.currentTimeMillis() - fuelUpdatedAt >= FUEL_REFRESH_MS
 
-        // Around 40 litres the recommendation is early enough for a calm decision.
         val shouldPlan = litres <= 42.0 || distanceKm >= 190.0
         if (!force && (!shouldPlan || (!due && moved < 20_000f))) return
 
@@ -268,15 +281,21 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
         lastFuelLocation = Location(location)
         val current = GeoPoint(location.latitude, location.longitude)
         val tankerKey = prefs.getString("tankerkoenig_key", "").orEmpty()
+        val mapboxToken = cleanToken()
+        val requestSession = sessionId
+        val requestStage = stage
+        val requestId = ++fuelRequestId
 
         worker.execute {
             val suggestion = runCatching {
                 FuelPriceClient.query(
                     current = current,
                     route = result.geometry,
-                    destination = TripConfig.destination(stage),
+                    destination = TripConfig.destination(requestStage),
                     consumption = consumption,
-                    tankerKoenigKey = tankerKey
+                    tankerKoenigKey = tankerKey,
+                    mapboxToken = mapboxToken,
+                    baseRouteDistanceM = result.distanceM
                 )
             }.getOrElse {
                 recordError("Tankdaten: ${it.javaClass.simpleName}: ${it.message}")
@@ -284,6 +303,9 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
             } ?: fallbackFuel(current, result.geometry, consumption)
 
             main.post {
+                if (!active || sessionId != requestSession || stage != requestStage || fuelRequestId != requestId) {
+                    return@post
+                }
                 fuelSuggestion = suggestion
                 recalculate()
             }
@@ -361,7 +383,7 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
             }
             val geometry = result?.geometry.orEmpty()
             val tolls = result?.tolls?.takeIf { it.isNotEmpty() } ?: fallbackTolls(geometry)
-            val updatedFuel = current?.let { updateFuelDistance(it, fuelSuggestion) }
+            val updatedFuel = current?.let { updateFuelDistance(it, fuelSuggestion, geometry) }
             fuelSuggestion = updatedFuel
             val event = nextEvent(current, tolls, updatedFuel, litres, minutes, schedule)
             val compact = compactRoute(result)
@@ -415,12 +437,23 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
         }
     }
 
-    private fun updateFuelDistance(current: GeoPoint, suggestion: FuelSuggestion?): FuelSuggestion? {
+    private fun updateFuelDistance(
+        current: GeoPoint,
+        suggestion: FuelSuggestion?,
+        geometry: List<GeoPoint>
+    ): FuelSuggestion? {
         suggestion ?: return null
-        val distance = Geo.distanceM(current, suggestion.point) / 1000.0
+        val routeDistance = Geo.distanceAheadOnRouteM(
+            current,
+            suggestion.point,
+            geometry,
+            maxCurrentOffsetM = 8_000.0,
+            maxTargetOffsetM = 12_000.0,
+            includeTargetOffset = true
+        )?.div(1000.0)
+        val distance = routeDistance ?: Geo.distanceM(current, suggestion.point) / 1000.0
         val old = suggestion.distanceAheadKm
-        // If the station has clearly been passed, discard it and search again.
-        if (distance > old + 4.0 && old < 12.0) {
+        if (routeDistance == null && distance > old + 4.0 && old < 12.0) {
             fuelUpdatedAt = 0L
             return null
         }
@@ -484,8 +517,16 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
             )
         }
         if (current != null) {
+            val geometry = route?.geometry.orEmpty()
             val toll = tolls
-                .map { it to Geo.distanceM(current, it.point) }
+                .mapNotNull { toll ->
+                    Geo.distanceAheadOnRouteM(
+                        current, toll.point, geometry,
+                        maxCurrentOffsetM = 8_000.0,
+                        maxTargetOffsetM = 2_500.0,
+                        includeTargetOffset = true
+                    )?.let { toll to it }
+                }
                 .filter { it.second <= 20_000 }
                 .minByOrNull { it.second }
             if (toll != null) {
@@ -598,24 +639,31 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
         isToll: Boolean,
         thresholds: List<Int>
     ) {
-        val distance = Geo.distanceM(current, target)
+        val geometry = route?.geometry.orEmpty()
+        val distance = Geo.distanceAheadOnRouteM(
+            current,
+            target,
+            geometry,
+            maxCurrentOffsetM = 8_000.0,
+            maxTargetOffsetM = if (isToll) 2_500.0 else 12_000.0,
+            includeTargetOffset = true
+        ) ?: return
         val old = previousDistance.put(id, distance)
-        if (old != null && distance > old + 100) return
+        if (old != null && distance > old + 150.0) return
 
-        thresholds.sortedDescending().forEach { threshold ->
-            val key = "${id}_$threshold"
-            if (distance <= threshold && announced.add(key)) {
-                val distanceText = if (threshold < 1_000) "$threshold m" else "${threshold / 1_000} km"
-                val title = if (isToll) "Mautstelle in $distanceText" else "Tankstopp in $distanceText"
-                alert(title, label, threshold <= 500)
-                if (threshold <= 500) {
-                    speak(
-                        if (isToll) "Mautstelle in fünfhundert Metern."
-                        else "Empfohlene Tankstelle in fünfhundert Metern."
-                    )
-                }
-                return
-            }
+        val crossed = thresholds.sortedDescending().filter { distance <= it }
+        val newlyCrossed = crossed.filter { "${id}_$it" !in announced }
+        if (newlyCrossed.isEmpty()) return
+        crossed.forEach { announced.add("${id}_$it") }
+        val threshold = newlyCrossed.minOrNull() ?: return
+        val distanceText = if (threshold < 1_000) "$threshold m" else "${threshold / 1_000} km"
+        val title = if (isToll) "Mautstelle in $distanceText" else "Tankstopp in $distanceText"
+        alert(title, label, threshold <= 500)
+        if (threshold <= 500) {
+            speak(
+                if (isToll) "Mautstelle in fünfhundert Metern."
+                else "Empfohlene Tankstelle in fünfhundert Metern."
+            )
         }
     }
 
@@ -656,6 +704,9 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
 
     private fun stopTrip() {
         runCatching { fused.removeLocationUpdates(callback) }
+        sessionId = System.nanoTime()
+        routeRequestId++
+        fuelRequestId++
         active = false
         paused = false
         runtime.edit().clear().apply()
@@ -808,6 +859,7 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
         pausedTotal = runtime.getLong("paused_total", 0L)
         distanceKm = runtime.getFloat("distance_km", 0f).toDouble()
         fuelSuggestion = snapshot.fuelSuggestion
+        sessionId = System.nanoTime()
         if (!runtimeIsValid()) {
             active = false
             paused = false
@@ -826,6 +878,9 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
     }
 
     override fun onDestroy() {
+        sessionId = System.nanoTime()
+        routeRequestId++
+        fuelRequestId++
         runCatching { fused.removeLocationUpdates(callback) }
         worker.shutdownNow()
         runCatching { tts?.shutdown() }

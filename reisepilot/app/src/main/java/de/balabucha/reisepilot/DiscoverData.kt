@@ -143,9 +143,13 @@ object DestinationCatalog {
         .filter { it.region == region }
         .sortedByDescending { it.priority }
 
-    fun nearestRegion(location: GeoPoint?): TravelRegion {
-        if (location == null) return TravelRegion.CANET
-        return TravelRegion.entries.minBy { Geo.distanceM(location, it.center) }
+    fun nearestRegion(location: GeoPoint?): TravelRegion? {
+        location ?: return null
+        return TravelRegion.entries
+            .map { it to Geo.distanceM(location, it.center) / 1000.0 }
+            .filter { (region, distanceKm) -> distanceKm <= region.radiusKm }
+            .minByOrNull { it.second }
+            ?.first
     }
 
     fun distanceKm(location: GeoPoint?, place: TravelPlace): Double? =
