@@ -11,8 +11,8 @@ on:
 
 jobs:
   emulator-audit:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+    runs-on: ubuntu-22.04
+    timeout-minutes: 50
     permissions:
       contents: read
     steps:
@@ -24,36 +24,48 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
+      - name: Compile app and emulator tests first
+        run: |
+          cd reisepilot
+          echo 'PHASE compile started' > emulator-summary.txt
+          gradle :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace 2>&1 | tee emulator-compile.log
+          echo 'PHASE compile passed' >> emulator-summary.txt
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Install and test as user on Android API 35
+      - name: Install and test as user on Android API 34
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: 34
           target: google_apis
           arch: x86_64
-          profile: pixel_7
+          profile: pixel_6
           disable-animations: true
           emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
             cd reisepilot
             set +e
+            echo 'PHASE emulator booted' >> emulator-summary.txt
+            adb devices -l | tee emulator-devices.txt
+            adb shell getprop ro.build.version.sdk | tee emulator-api.txt
             adb logcat -c
             adb emu geo fix 11.4000 53.6400
             gradle :app:connectedDebugAndroidTest --stacktrace 2>&1 | tee emulator-test.log
             code=${PIPESTATUS[0]}
+            echo "PHASE instrumentation exit=$code" >> emulator-summary.txt
             adb shell am force-stop de.balabucha.reisepilot || true
-            adb shell am start -n de.balabucha.reisepilot/.MainActivity || true
-            sleep 3
+            adb shell am start -n de.balabucha.reisepilot/.MainActivity | tee emulator-launch.txt
+            sleep 4
             adb shell monkey -p de.balabucha.reisepilot --throttle 90 --pct-syskeys 0 --pct-appswitch 0 -v 250 > monkey.log 2>&1 || true
-            sleep 2
+            sleep 3
             adb logcat -d > emulator-logcat.txt
             if grep -E 'FATAL EXCEPTION|Process: de\.balabucha\.reisepilot.*has died|ANR in de\.balabucha\.reisepilot' emulator-logcat.txt; then
-              echo 'ReisePilot crash or ANR detected in emulator logcat'
+              echo 'RESULT app crash or ANR detected' >> emulator-summary.txt
               code=1
+            else
+              echo 'RESULT no ReisePilot crash or ANR in logcat' >> emulator-summary.txt
             fi
             exit $code
       - name: Upload emulator evidence
@@ -62,7 +74,12 @@ jobs:
         with:
           name: ReisePilot-v4.0-emulator-audit
           path: |
+            reisepilot/emulator-summary.txt
+            reisepilot/emulator-compile.log
+            reisepilot/emulator-devices.txt
+            reisepilot/emulator-api.txt
             reisepilot/emulator-test.log
+            reisepilot/emulator-launch.txt
             reisepilot/monkey.log
             reisepilot/emulator-logcat.txt
             reisepilot/app/build/reports/androidTests/connected
