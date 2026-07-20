@@ -90,8 +90,11 @@ class ReisePilotUserFlowTest {
         val photoDirectory = File(compose.activity.cacheDir, "travel_photos_v44")
         photoDirectory.deleteRecursively()
 
-        findByScrolling(selectedPlace.title)
-        compose.onNodeWithText(selectedPlace.title).performTouchInput { click() }
+        val cardTag = "destination-card:${selectedPlace.region.name}:${selectedPlace.title}"
+        compose.onNodeWithTag(cardTag, useUnmergedTree = true)
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performClick()
         compose.waitForIdle()
         compose.onNodeWithText("Route in Google Maps").assertIsDisplayed()
         compose.waitUntil(75_000) {
