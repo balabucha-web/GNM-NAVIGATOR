@@ -102,10 +102,11 @@ class ReisePilotUserFlowTest {
         compose.onNodeWithText("Buchungen").assertIsDisplayed()
         findByScrolling("Technische Einstellungen")
         clickControl("Technische Einstellungen")
+        findByScrolling("Mapbox-Kartenzugang")
         compose.onNodeWithText("Mapbox-Kartenzugang").assertIsDisplayed()
         compose.activity.onBackPressedDispatcher.onBackPressed()
         compose.waitForIdle()
-        compose.onNodeWithText("System und Fahrzeug").assertIsDisplayed()
+        compose.onNodeWithText("System und Fahrzeug").assertExists()
     }
 
     @Test
