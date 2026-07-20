@@ -68,7 +68,11 @@ jobs:
             reisepilot/emulator-devices.txt
             reisepilot/emulator-api.txt
             reisepilot/emulator-test.log
+            reisepilot/emulator-app-install.txt
             reisepilot/emulator-launch.txt
+            reisepilot/emulator-start.xml
+            reisepilot/emulator-start-screen.png
+            reisepilot/emulator-after-monkey.png
             reisepilot/monkey.log
             reisepilot/emulator-logcat.txt
             reisepilot/app/build/reports/androidTests/connected
