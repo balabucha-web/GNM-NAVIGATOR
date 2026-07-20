@@ -1,4 +1,4 @@
-name: ReisePilot 4.3 Emulator Audit
+name: ReisePilot 4.4 Emulator Audit
 
 on:
   push:
@@ -44,6 +44,9 @@ jobs:
           if [ -f scripts/apply_v42_upgrade.py ]; then
             python3 scripts/apply_v42_upgrade.py
           fi
+          if [ -f scripts/apply_v44_upgrade.py ]; then
+            python3 scripts/apply_v44_upgrade.py
+          fi
       - name: Compile app and emulator tests first
         run: |
           set -o pipefail
@@ -78,7 +81,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-v4.3-emulator-audit
+          name: ReisePilot-v4.4-emulator-audit
           path: |
             reisepilot/emulator-summary.txt
             reisepilot/emulator-compile.log
