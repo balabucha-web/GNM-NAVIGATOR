@@ -85,9 +85,8 @@ class ReisePilotUserFlowTest {
 
         clickTab("Entdecken")
         compose.onNodeWithText("Ziel suchen").assertIsDisplayed()
-        clickControl("Barcelona")
 
-        val selectedPlace = DestinationCatalog.places.first { it.title == "Sagrada Família" }
+        val selectedPlace = DestinationCatalog.places.first { it.title == "Collioure" }
         val photoDirectory = File(compose.activity.cacheDir, "travel_photos_v44")
         photoDirectory.deleteRecursively()
 
