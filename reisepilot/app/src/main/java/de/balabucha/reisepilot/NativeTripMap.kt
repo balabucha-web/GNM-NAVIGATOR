@@ -22,14 +22,18 @@ import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
+import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.layers.PropertyFactory.*
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.geojson.Feature
 import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
+import java.util.Locale
 
 private const val BASE_STYLE = "https://tiles.openfreemap.org/styles/liberty"
+
+private data class MapMarker(val point: GeoPoint, val label: String)
 
 @Composable
 fun NativeTripMap(
@@ -197,34 +201,56 @@ private class NativeMapController(context: Context) {
         upsertLine(style, "route-severe", byLevel.getValue("severe"), Color.rgb(180, 35, 24), 7f)
         upsertLine(style, "route-unknown", byLevel.getValue("unknown"), Color.rgb(23, 107, 135), 5f)
 
-        val current = latestSnapshot.lat?.let { lat -> latestSnapshot.lon?.let { lon -> GeoPoint(lat, lon) } }
+        val current = latestSnapshot.lat?.let { lat -> latestSnapshot.lon?.let { lon -> GeoPoint(lat, lon, "Dein Standort", "current") } }
         val tolls = latestSnapshot.tolls.ifEmpty { latestPreview?.tolls.orEmpty() }
         val fallbackFuels = TripConfig.fuelStops(latestSnapshot.stage)
-        val recommendedFuel = latestSnapshot.fuelSuggestion?.point
+        val recommended = latestSnapshot.fuelSuggestion
 
-        upsertPoints(style, "point-current", current?.let(::listOf).orEmpty(), Color.rgb(23, 107, 135), 8f)
-        upsertPoints(style, "point-tolls", tolls.map { it.point }, Color.rgb(183, 121, 0), 7f)
-        upsertPoints(style, "point-fallback-fuels", fallbackFuels, Color.rgb(126, 87, 194), 7f)
-        upsertPoints(style, "point-recommended-fuel", recommendedFuel?.let(::listOf).orEmpty(), Color.rgb(0, 158, 96), 11f)
-        upsertPoints(
-            style,
-            "point-start",
-            listOf(TripConfig.origin(latestSnapshot.stage)),
-            Color.rgb(24, 38, 63),
-            8f
+        upsertLabeledPoints(
+            style, "point-current",
+            current?.let { listOf(MapMarker(it, "Du")) }.orEmpty(),
+            Color.rgb(23, 107, 135), 8f
         )
-        upsertPoints(
-            style,
-            "point-destination",
-            listOf(TripConfig.destination(latestSnapshot.stage)),
-            Color.rgb(180, 35, 24),
-            10f
+        upsertLabeledPoints(
+            style, "point-tolls",
+            tolls.map { MapMarker(it.point, "Maut · ${it.name.substringBefore(" · ")}") },
+            Color.rgb(183, 121, 0), 7f
+        )
+        upsertLabeledPoints(
+            style, "point-fallback-fuels",
+            fallbackFuels.map { MapMarker(it, "Tank · ${it.name}") },
+            Color.rgb(126, 87, 194), 7f
+        )
+        upsertLabeledPoints(
+            style, "point-recommended-fuel",
+            recommended?.let { fuel ->
+                val price = fuel.pricePerLitre?.let { String.format(Locale.GERMANY, "%.3f €/l", it) }
+                    ?: "Preis wird geladen"
+                listOf(MapMarker(fuel.point, "$price\n${fuel.name}"))
+            }.orEmpty(),
+            Color.rgb(0, 158, 96), 12f,
+            textSize = 14f,
+            allowOverlap = true
+        )
+        val origin = TripConfig.origin(latestSnapshot.stage)
+        val destination = TripConfig.destination(latestSnapshot.stage)
+        upsertLabeledPoints(
+            style, "point-start",
+            listOf(MapMarker(origin, "Start · ${origin.name}")),
+            Color.rgb(24, 38, 63), 8f
+        )
+        upsertLabeledPoints(
+            style, "point-destination",
+            listOf(MapMarker(destination, "Ziel · ${destination.name}")),
+            Color.rgb(180, 35, 24), 10f,
+            textSize = 13f,
+            allowOverlap = true
         )
 
         val cameraKey = "${latestSnapshot.stage}:${route.firstOrNull()?.lat}:${route.lastOrNull()?.lat}:${route.size}"
         if (cameraKey != lastCameraKey) {
             lastCameraKey = cameraKey
-            fitCamera(route.ifEmpty { listOf(TripConfig.origin(latestSnapshot.stage), TripConfig.destination(latestSnapshot.stage)) })
+            fitCamera(route.ifEmpty { listOf(origin, destination) })
         }
     }
 
@@ -261,16 +287,44 @@ private class NativeMapController(context: Context) {
         } else source.setGeoJson(collection)
     }
 
-    private fun upsertPoints(style: Style, id: String, points: List<GeoPoint>, color: Int, radius: Float) {
+    private fun upsertLabeledPoints(
+        style: Style,
+        id: String,
+        markers: List<MapMarker>,
+        color: Int,
+        radius: Float,
+        textSize: Float = 11f,
+        allowOverlap: Boolean = false
+    ) {
         val sourceId = "$id-source"
-        val layerId = "$id-layer"
-        val collection = FeatureCollection.fromFeatures(points.map { Feature.fromGeometry(Point.fromLngLat(it.lon, it.lat)) })
+        val circleLayerId = "$id-circle"
+        val labelLayerId = "$id-label"
+        val features = markers.map { marker ->
+            Feature.fromGeometry(Point.fromLngLat(marker.point.lon, marker.point.lat)).apply {
+                addStringProperty("label", marker.label)
+            }
+        }
+        val collection = FeatureCollection.fromFeatures(features)
         val source = style.getSourceAs<GeoJsonSource>(sourceId)
         if (source == null) {
             style.addSource(GeoJsonSource(sourceId, collection))
             style.addLayer(
-                CircleLayer(layerId, sourceId).withProperties(
+                CircleLayer(circleLayerId, sourceId).withProperties(
                     circleColor(color), circleRadius(radius), circleStrokeColor(Color.WHITE), circleStrokeWidth(3f)
+                )
+            )
+            style.addLayer(
+                SymbolLayer(labelLayerId, sourceId).withProperties(
+                    textField("{label}"),
+                    textSize(textSize),
+                    textColor(Color.rgb(24, 38, 63)),
+                    textHaloColor(Color.WHITE),
+                    textHaloWidth(2f),
+                    textOffset(arrayOf(0f, 1.65f)),
+                    textAnchor(Property.TEXT_ANCHOR_TOP),
+                    textMaxWidth(15f),
+                    textAllowOverlap(allowOverlap),
+                    textIgnorePlacement(allowOverlap)
                 )
             )
         } else source.setGeoJson(collection)
