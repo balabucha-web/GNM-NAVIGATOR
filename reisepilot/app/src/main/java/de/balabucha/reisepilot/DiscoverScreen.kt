@@ -244,7 +244,6 @@ private fun SuggestionChip(place: TravelPlace, onClick: () -> Unit) {
     }
 }
 
-
 @Composable
 private fun PlaceThumbnail(place: TravelPlace, modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -274,7 +273,10 @@ private fun PlaceListItem(
     onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().testTag(destinationCardTag(place)).clickable(onClick = onClick),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .testTag(destinationCardTag(place)),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = androidx.compose.foundation.BorderStroke(1.dp, Line)
