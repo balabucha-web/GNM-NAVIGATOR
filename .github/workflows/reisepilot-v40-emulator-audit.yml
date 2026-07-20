@@ -38,6 +38,9 @@ jobs:
             base64 -d scripts/apply_v41_fixes.py.gz.b64 | gzip -d > /tmp/apply_v41_fixes.py
             python3 /tmp/apply_v41_fixes.py
           fi
+          if [ -f scripts/apply_v41_hotfix.py ]; then
+            python3 scripts/apply_v41_hotfix.py
+          fi
       - name: Compile app and emulator tests first
         run: |
           set -o pipefail
