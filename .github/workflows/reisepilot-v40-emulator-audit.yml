@@ -26,6 +26,7 @@ jobs:
           gradle-version: '9.5.0'
       - name: Compile app and emulator tests first
         run: |
+          set -o pipefail
           cd reisepilot
           echo 'PHASE compile started' > emulator-summary.txt
           gradle :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace 2>&1 | tee emulator-compile.log
@@ -38,11 +39,16 @@ jobs:
           ls -la /dev/kvm || true
       - name: Install Android API 34 emulator image
         run: |
+          set -o pipefail
           cd reisepilot
           echo 'PHASE install emulator image' >> emulator-summary.txt
-          yes | sdkmanager --licenses >/dev/null 2>&1 || true
-          sdkmanager 'platform-tools' 'emulator' 'platforms;android-34' 'system-images;android-34;google_apis;x86_64' 2>&1 | tee emulator-sdk-install.log
-          echo no | avdmanager create avd --force --name reisepilot_api34 --package 'system-images;android-34;google_apis;x86_64' --device 'pixel_6' 2>&1 | tee emulator-avd-create.log
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)
+          AVDMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name avdmanager | head -n 1)
+          test -x "$SDKMANAGER"
+          test -x "$AVDMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" 'platform-tools' 'emulator' 'platforms;android-34' 'system-images;android-34;google_apis;x86_64' 2>&1 | tee emulator-sdk-install.log
+          echo no | "$AVDMANAGER" create avd --force --name reisepilot_api34 --package 'system-images;android-34;google_apis;x86_64' --device 'pixel_6' 2>&1 | tee emulator-avd-create.log
       - name: Boot, install and test as a user
         run: |
           cd reisepilot
