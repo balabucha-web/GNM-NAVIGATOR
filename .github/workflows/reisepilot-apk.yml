@@ -1,4 +1,4 @@
-name: Build ReisePilot 4.1 APK
+name: Build ReisePilot 4.2 APK
 
 on:
   push:
@@ -34,7 +34,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
-      - name: Apply guarded 4.1 source migration
+      - name: Apply guarded source migration
         run: |
           set -euo pipefail
           if [ -f scripts/apply_v41_fixes.py.gz.b64 ]; then
@@ -45,6 +45,10 @@ jobs:
           if [ -f scripts/apply_v41_hotfix.py ]; then
             python3 scripts/apply_v41_hotfix.py
             rm scripts/apply_v41_hotfix.py
+          fi
+          if [ -f scripts/apply_v42_upgrade.py ]; then
+            python3 scripts/apply_v42_upgrade.py
+            rm scripts/apply_v42_upgrade.py
           fi
       - name: Commit migrated sources to release branch
         if: github.event_name == 'push'
@@ -57,7 +61,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
-          git commit -m 'fix(reisepilot): apply guarded 4.1 release fixes [skip ci]'
+          git commit -m 'feat(reisepilot): apply destination images and fuel search upgrade'
           git push
       - name: Verify release-critical guards
         run: |
@@ -74,20 +78,21 @@ jobs:
               text = (root / name).read_text()
               for marker in markers:
                   assert marker in text, f'{name}: missing {marker}'
-          assert 'versionName = "4.1"' in Path('app/build.gradle.kts').read_text()
-          print('PASS: v4.1 release guards present')
+          version = Path('app/build.gradle.kts').read_text()
+          assert 'versionName = "4.1"' in version or 'versionName = "4.2"' in version
+          print('PASS: release guards present')
           PY
       - name: Check Wikimedia image service
         run: python3 scripts/check_wikimedia_images.py
-      - name: Guard scrolling list against network images
+      - name: Guard destination image loading
         run: |
           python3 - <<'PY'
           from pathlib import Path
           text = Path('app/src/main/java/de/balabucha/reisepilot/DiscoverScreen.kt').read_text()
-          list_part = text.split('private fun PlaceListItem', 1)[1].split('private fun PlaceDetailSheet', 1)[0]
-          assert 'AsyncImage' not in list_part, 'Scrolling list must never load images'
-          assert text.count('AsyncImage(') == 1, 'Exactly one image loader is allowed, in the detail sheet'
-          print('PASS: no image or network loading in scrolling destination list')
+          assert text.count('AsyncImage(') >= 1, 'At least one destination image loader is required'
+          if 'private fun PlaceThumbnail' in text:
+              assert text.count('AsyncImage(') >= 2, 'List thumbnail and detail image loaders are required'
+          print('PASS: destination image loading is present')
           PY
       - name: Test, lint and build debug APK
         id: build
@@ -98,21 +103,21 @@ jobs:
           code=${PIPESTATUS[0]}
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           if [ "$code" -eq 0 ]; then
-            sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/ReisePilot-Live-v4.1.sha256
+            sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/ReisePilot-Live-v4.2.sha256
           fi
           exit 0
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-v4.1-build-log
+          name: ReisePilot-v4.2-build-log
           path: reisepilot/build.log
           if-no-files-found: warn
       - name: Upload test and lint reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-v4.1-reports
+          name: ReisePilot-v4.2-reports
           path: |
             reisepilot/app/build/reports/tests/testDebugUnitTest
             reisepilot/app/build/reports/lint-results-debug.html
@@ -121,10 +126,10 @@ jobs:
         if: steps.build.outputs.exit_code == '0'
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-Live-v4.1-APK
+          name: ReisePilot-Live-v4.2-APK
           path: |
             reisepilot/app/build/outputs/apk/debug/app-debug.apk
-            reisepilot/app/build/outputs/apk/debug/ReisePilot-Live-v4.1.sha256
+            reisepilot/app/build/outputs/apk/debug/ReisePilot-Live-v4.2.sha256
           if-no-files-found: error
       - name: Fail when validation failed
         if: steps.build.outputs.exit_code != '0'
