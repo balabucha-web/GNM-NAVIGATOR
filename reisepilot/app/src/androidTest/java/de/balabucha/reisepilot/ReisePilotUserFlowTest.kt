@@ -91,7 +91,8 @@ class ReisePilotUserFlowTest {
         photoDirectory.deleteRecursively()
 
         findByScrolling(selectedPlace.title)
-        clickControl(selectedPlace.title)
+        compose.onNodeWithText(selectedPlace.title).performTouchInput { click() }
+        compose.waitForIdle()
         compose.onNodeWithText("Route in Google Maps").assertIsDisplayed()
         compose.waitUntil(75_000) {
             WikiImageResolver.cachedPhotoCount(compose.activity, selectedPlace) >= 2
