@@ -68,6 +68,16 @@ class ReisePilotUserFlowTest {
         compose.onNodeWithText(text, substring = true).assertExists()
     }
 
+    private fun findTagByScrolling(tag: String, maxSwipes: Int = 18) {
+        repeat(maxSwipes + 1) {
+            if (compose.onAllNodesWithTag(tag, useUnmergedTree = true)
+                    .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()) return
+            compose.onRoot().performTouchInput { swipeUp() }
+            compose.waitForIdle()
+        }
+        compose.onNodeWithTag(tag, useUnmergedTree = true).assertExists()
+    }
+
     @Test
     fun primaryUserJourney_remainsStable_andCachesRealDestinationGallery() {
         compose.onNodeWithText("ReisePilot").assertIsDisplayed()
@@ -91,8 +101,8 @@ class ReisePilotUserFlowTest {
         photoDirectory.deleteRecursively()
 
         val cardTag = "destination-card:${selectedPlace.region.name}:${selectedPlace.title}"
+        findTagByScrolling(cardTag)
         compose.onNodeWithTag(cardTag, useUnmergedTree = true)
-            .performScrollTo()
             .assertIsDisplayed()
             .performClick()
         compose.waitForIdle()
