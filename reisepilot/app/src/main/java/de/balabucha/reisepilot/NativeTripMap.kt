@@ -3,6 +3,7 @@ package de.balabucha.reisepilot
 import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
+import android.view.MotionEvent
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -71,12 +72,26 @@ private class NativeMapController(context: Context) {
     init {
         MapLibre.getInstance(context.applicationContext)
         mapView = MapView(context)
+        mapView.isClickable = true
+        mapView.setOnTouchListener { view, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE, MotionEvent.ACTION_POINTER_DOWN ->
+                    view.parent?.requestDisallowInterceptTouchEvent(true)
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                    view.parent?.requestDisallowInterceptTouchEvent(false)
+            }
+            false
+        }
         mapView.onCreate(Bundle())
         mapView.getMapAsync { readyMap ->
             if (destroyed) return@getMapAsync
             map = readyMap
             readyMap.uiSettings.isLogoEnabled = true
             readyMap.uiSettings.isAttributionEnabled = true
+            readyMap.uiSettings.isScrollGesturesEnabled = true
+            readyMap.uiSettings.isZoomGesturesEnabled = true
+            readyMap.uiSettings.isRotateGesturesEnabled = true
+            readyMap.uiSettings.isTiltGesturesEnabled = true
             readyMap.setStyle(Style.Builder().fromUri(BASE_STYLE)) { readyStyle ->
                 if (destroyed) return@setStyle
                 style = readyStyle
@@ -189,14 +204,21 @@ private class NativeMapController(context: Context) {
 
         upsertPoints(style, "point-current", current?.let(::listOf).orEmpty(), Color.rgb(23, 107, 135), 8f)
         upsertPoints(style, "point-tolls", tolls.map { it.point }, Color.rgb(183, 121, 0), 7f)
-        upsertPoints(style, "point-fallback-fuels", fallbackFuels, Color.rgb(84, 151, 116), 6f)
+        upsertPoints(style, "point-fallback-fuels", fallbackFuels, Color.rgb(126, 87, 194), 7f)
         upsertPoints(style, "point-recommended-fuel", recommendedFuel?.let(::listOf).orEmpty(), Color.rgb(0, 158, 96), 11f)
         upsertPoints(
             style,
-            "point-ends",
-            listOf(TripConfig.origin(latestSnapshot.stage), TripConfig.destination(latestSnapshot.stage)),
+            "point-start",
+            listOf(TripConfig.origin(latestSnapshot.stage)),
             Color.rgb(24, 38, 63),
-            7f
+            8f
+        )
+        upsertPoints(
+            style,
+            "point-destination",
+            listOf(TripConfig.destination(latestSnapshot.stage)),
+            Color.rgb(180, 35, 24),
+            10f
         )
 
         val cameraKey = "${latestSnapshot.stage}:${route.firstOrNull()?.lat}:${route.lastOrNull()?.lat}:${route.size}"

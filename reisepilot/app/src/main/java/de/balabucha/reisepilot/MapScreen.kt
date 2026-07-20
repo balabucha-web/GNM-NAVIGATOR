@@ -25,6 +25,7 @@ fun MapScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifier
     val token = normalizeMapboxToken(prefs.getString("mapbox_token", "").orEmpty())
     val tokenValid = mapboxTokenLooksValid(token)
     var stage by rememberSaveable { mutableStateOf(snapshot.stage) }
+    var mapInstance by rememberSaveable { mutableIntStateOf(0) }
 
     val useLiveRoute = snapshot.active && stage == snapshot.stage && snapshot.routeGeoJson.isNotBlank()
     val preview by produceState(
@@ -93,26 +94,53 @@ fun MapScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifier
         }
 
         item {
+            Text("Mit einem Finger verschieben · mit zwei Fingern zoomen und drehen", color = Muted, style = MaterialTheme.typography.bodySmall)
+        }
+
+        item {
             Card(
-                Modifier.fillMaxWidth().height(480.dp),
+                Modifier.fillMaxWidth().height(520.dp),
                 shape = RoundedCornerShape(22.dp),
                 border = BorderStroke(1.dp, Line),
                 colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFFEAF0F5))
             ) {
-                NativeTripMap(
-                    snapshot = displaySnapshot,
-                    previewRoute = preview.route,
-                    modifier = Modifier.fillMaxSize()
-                )
+                key(mapInstance) {
+                    NativeTripMap(
+                        snapshot = displaySnapshot,
+                        previewRoute = preview.route,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
 
         item {
+            OutlinedButton(
+                onClick = { mapInstance++ },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(13.dp)
+            ) { Text("Gesamte Route wieder anzeigen") }
+        }
+
+        item {
             AppCard {
-                Text("Legende", style = MaterialTheme.typography.titleMedium)
-                StatusLine("Grün", "freie Strecke oder günstiger Tankpunkt", Light.GREEN)
-                StatusLine("Gelb", "mäßiger Verkehr oder Mautpunkt", Light.YELLOW)
-                StatusLine("Rot", "starker Verkehr oder sofort handeln", Light.RED)
+                Text("Punkte auf der Karte", style = MaterialTheme.typography.titleMedium)
+                StatusLine("Dunkelblau", "Startpunkt", Light.GREY)
+                StatusLine("Rot", "Ziel", Light.RED)
+                StatusLine("Blau", "dein aktueller Standort", Light.GREY)
+                StatusLine("Gelb", "Mautstelle", Light.YELLOW)
+                StatusLine("Lila", "geplanter Tankstopp", Light.GREY)
+                StatusLine("Großes Grün", "aktuell empfohlene Tankstelle", Light.GREEN)
+                val tolls = displaySnapshot.tolls.ifEmpty { preview.route?.tolls.orEmpty() }
+                if (tolls.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text("Mautpunkte", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                    tolls.forEach { Text("• ${it.name}", color = Muted, style = MaterialTheme.typography.bodySmall) }
+                }
+                Spacer(Modifier.height(8.dp))
+                Text("Geplante Tankpunkte", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                TripConfig.fuelStops(stage).forEach { Text("• ${it.name}", color = Muted, style = MaterialTheme.typography.bodySmall) }
+                displaySnapshot.fuelSuggestion?.let { Text("• Empfohlen: ${it.name}", color = Green, style = MaterialTheme.typography.bodySmall) }
                 Text(
                     "Die Basiskarte läuft nativ. Google Maps bleibt für die eigentliche Navigation zuständig.",
                     color = Muted,

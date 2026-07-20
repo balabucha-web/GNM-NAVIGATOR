@@ -253,6 +253,7 @@ private fun PlaceThumbnail(place: TravelPlace, modifier: Modifier = Modifier) {
     }
     Surface(modifier = modifier, shape = RoundedCornerShape(14.dp), color = regionColor(place.region)) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            DestinationArtwork(place.region, Modifier.fillMaxSize())
             Text(kindSymbol(place.kind), color = Navy.copy(alpha = .62f), fontWeight = FontWeight.Black, fontSize = 20.sp)
             imageUrl?.let { url ->
                 AsyncImage(model = url, contentDescription = place.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
@@ -345,6 +346,7 @@ private fun PlaceDetailSheet(
                     Brush.linearGradient(listOf(regionColor(place.region), Color(0xFFE7EEF2)))
                 )
             ) {
+                DestinationArtwork(place.region, Modifier.fillMaxSize())
                 Column(
                     Modifier.fillMaxSize().padding(20.dp),
                     verticalArrangement = Arrangement.Center,
