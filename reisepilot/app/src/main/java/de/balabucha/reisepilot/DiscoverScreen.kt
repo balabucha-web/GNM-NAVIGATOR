@@ -53,7 +53,7 @@ fun DiscoverScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Mod
 
     Page(
         title = "Entdecken",
-        subtitle = "Schnelle Ideen ohne Ladechaos · Bild erst im Zieldetail",
+        subtitle = "Mehr Ausflugsziele · Vorschaubilder und Route direkt verfügbar",
         modifier = modifier
     ) {
         item {
@@ -147,7 +147,7 @@ fun DiscoverScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Mod
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("${places.size} passende Ziele", fontWeight = FontWeight.Bold)
-                Text("Antippen für Bild & Route", color = Muted, fontSize = 12.sp)
+                Text("Bild antippen für Details & Route", color = Muted, fontSize = 12.sp)
             }
         }
 
@@ -242,6 +242,28 @@ private fun SuggestionChip(place: TravelPlace, onClick: () -> Unit) {
     }
 }
 
+
+@Composable
+private fun PlaceThumbnail(place: TravelPlace, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    var finished by remember(place.region, place.title) { mutableStateOf(false) }
+    val imageUrl by produceState<String?>(initialValue = null, place.imageQuery, place.region.imageFallback) {
+        value = runCatching { WikiImageResolver.resolve(context, place.imageQuery, place.region.imageFallback) }.getOrNull()
+        finished = true
+    }
+    Surface(modifier = modifier, shape = RoundedCornerShape(14.dp), color = regionColor(place.region)) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(kindSymbol(place.kind), color = Navy.copy(alpha = .62f), fontWeight = FontWeight.Black, fontSize = 20.sp)
+            imageUrl?.let { url ->
+                AsyncImage(model = url, contentDescription = place.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            }
+            if (!finished) {
+                CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp, color = Navy.copy(alpha = .55f))
+            }
+        }
+    }
+}
+
 @Composable
 private fun PlaceListItem(
     place: TravelPlace,
@@ -258,12 +280,7 @@ private fun PlaceListItem(
             Modifier.fillMaxWidth().padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                Modifier.size(46.dp).background(regionColor(place.region), RoundedCornerShape(14.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(kindSymbol(place.kind), color = Navy, fontWeight = FontWeight.Black, fontSize = 18.sp)
-            }
+            PlaceThumbnail(place, Modifier.size(78.dp))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(place.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)

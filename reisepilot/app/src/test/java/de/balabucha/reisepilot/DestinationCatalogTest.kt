@@ -8,7 +8,7 @@ class DestinationCatalogTest {
     fun everyRegionHasBroadUsefulCoverage() {
         TravelRegion.entries.forEach { region ->
             val places = DestinationCatalog.forRegion(region)
-            assertTrue("$region needs at least fourteen entries", places.size >= 14)
+            assertTrue("$region needs at least twenty entries", places.size >= 20)
             PlaceKind.entries.forEach { kind ->
                 assertTrue("$region needs $kind", places.any { it.kind == kind })
             }

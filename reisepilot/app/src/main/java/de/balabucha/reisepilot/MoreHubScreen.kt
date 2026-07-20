@@ -61,6 +61,32 @@ fun MoreHubScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modi
                 ) { Text("Technische Einstellungen") }
             }
         }
+
+        item {
+            AppCard {
+                Text("Tankstellen & Preise", style = MaterialTheme.typography.titleLarge)
+                Text("Fahrt starten und Standort erlauben. ReisePilot prüft dann automatisch günstige Dieselstationen entlang der geladenen Route.", color = Muted)
+                Spacer(Modifier.height(8.dp))
+                StatusLine("Frankreich", "offizielle Dieselpreise ohne API-Key", Light.GREEN)
+                StatusLine("Spanien", "offizielle Dieselpreise ohne API-Key", Light.GREEN)
+                StatusLine("Deutschland", "Live-Preise mit Tankerkönig-Key unter Technische Einstellungen", Light.YELLOW)
+                snapshot.fuelSuggestion?.let { fuel ->
+                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                    Text(fuel.name, fontWeight = FontWeight.Bold)
+                    Text(buildString {
+                        fuel.pricePerLitre?.let { append("${"%.3f".format(it)} €/l · ") }
+                        append("${"%.1f".format(fuel.distanceAheadKm)} km voraus · ca. ${"%.1f".format(fuel.detourKm)} km Umweg")
+                    }, color = Muted, fontSize = 13.sp)
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(onClick = { activity.openPointRoute(fuel.point, fuel.name) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) { Text("Route zur Tankstelle") }
+                }
+                Spacer(Modifier.height(10.dp))
+                Button(onClick = { activity.serviceAction(TripTrackingService.ACTION_RELOAD_CONFIG) }, enabled = snapshot.active, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
+                    Text(if (snapshot.active) "Tankstellen jetzt neu suchen" else "Zuerst Fahrt starten")
+                }
+                Text("Die automatische Suche beginnt spätestens nach längerer Fahrt oder bei sinkendem Tankstand und aktualisiert sich etwa alle zwölf Minuten.", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+            }
+        }
         item {
             AppCard {
                 Text("Reise-Apps", style = MaterialTheme.typography.titleLarge)
