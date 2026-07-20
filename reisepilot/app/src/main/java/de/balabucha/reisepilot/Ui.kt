@@ -47,27 +47,26 @@ fun ReiseTheme(content: @Composable () -> Unit) {
 }
 
 enum class AppTab(val title: String, val short: String) {
-    LIVE("Live", "L"),
-    MAP("Karte", "K"),
-    DISCOVER("Ziele", "Z"),
-    PLAN("Plan", "P"),
+    START("Start", "S"),
+    ROUTE("Route", "R"),
+    DISCOVER("Entdecken", "E"),
     MORE("Mehr", "M")
 }
 
 @Composable
 fun ReisePilotApp(activity: MainActivity, snapshot: TripSnapshot) {
-    var tab by rememberSaveable { mutableStateOf(AppTab.LIVE) }
+    var tab by rememberSaveable { mutableStateOf(AppTab.START) }
     Scaffold(
         containerColor = Bg,
         bottomBar = {
-            NavigationBar(containerColor = Color.White) {
+            NavigationBar(containerColor = Color.White, tonalElevation = 5.dp) {
                 AppTab.entries.forEach { item ->
                     NavigationBarItem(
                         selected = tab == item,
                         onClick = { tab = item },
                         icon = {
                             Box(
-                                Modifier.size(25.dp).background(
+                                Modifier.size(27.dp).background(
                                     if (tab == item) Blue else Color(0xFFE9EEF3),
                                     CircleShape
                                 ),
@@ -88,10 +87,9 @@ fun ReisePilotApp(activity: MainActivity, snapshot: TripSnapshot) {
         }
     ) { padding ->
         when (tab) {
-            AppTab.LIVE -> LiveScreen(activity, snapshot, Modifier.padding(padding))
-            AppTab.MAP -> MapScreen(activity, snapshot, Modifier.padding(padding))
+            AppTab.START -> LiveScreen(activity, snapshot, Modifier.padding(padding))
+            AppTab.ROUTE -> MapScreen(activity, snapshot, Modifier.padding(padding))
             AppTab.DISCOVER -> DiscoverScreen(activity, snapshot, Modifier.padding(padding))
-            AppTab.PLAN -> PlanScreen(activity, snapshot.stage, Modifier.padding(padding))
             AppTab.MORE -> MoreScreen(activity, snapshot, Modifier.padding(padding))
         }
     }
