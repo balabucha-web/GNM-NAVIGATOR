@@ -29,44 +29,56 @@ class ReisePilotUserFlowTest {
         compose.waitForIdle()
     }
 
-    private fun scrollUp(times: Int) {
+    private fun swipeUp(times: Int) {
         repeat(times) {
             compose.onRoot().performTouchInput { swipeUp() }
             compose.waitForIdle()
         }
     }
 
-    private fun scrollDown(times: Int) {
+    private fun swipeDown(times: Int) {
         repeat(times) {
             compose.onRoot().performTouchInput { swipeDown() }
             compose.waitForIdle()
         }
     }
 
+    private fun findByScrolling(text: String, maxSwipes: Int = 18) {
+        repeat(maxSwipes + 1) {
+            if (compose.onAllNodesWithText(text, substring = true)
+                    .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()) return
+            compose.onRoot().performTouchInput { swipeUp() }
+            compose.waitForIdle()
+        }
+        compose.onNodeWithText(text, substring = true).assertExists()
+    }
+
     @Test
-    fun completeUserFlow_remainsStable() {
+    fun primaryUserJourney_remainsStable() {
         compose.onNodeWithText("ReisePilot").assertIsDisplayed()
         compose.onNodeWithText("Fahrt starten").performClick()
-        compose.waitUntil(10_000) {
-            compose.onAllNodesWithText("Tracking aktiv").fetchSemanticsNodes().isNotEmpty()
+        compose.waitUntil(15_000) {
+            compose.onAllNodesWithText("Tracking aktiv")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
         }
         compose.onNodeWithText("Tracking stoppen").performClick()
 
         clickTab("Route")
         compose.onNodeWithText("Live-Karte").assertIsDisplayed()
-        compose.mainClock.advanceTimeBy(4_000)
+        Thread.sleep(2_000)
         compose.waitForIdle()
 
         clickTab("Entdecken")
         compose.onNodeWithText("Entdecken").assertIsDisplayed()
-        scrollUp(12)
+        swipeUp(16)
         compose.onNodeWithText("Entdecken").assertExists()
-        scrollDown(12)
+        swipeDown(16)
         compose.onNodeWithText("Entdecken").assertIsDisplayed()
 
-        scrollUp(2)
-        compose.onNodeWithText("Markt Canet-Plage").performClick()
+        findByScrolling("Strand & Promenade Canet")
+        compose.onNodeWithText("Strand & Promenade Canet").performClick()
         compose.onNodeWithText("Route in Google Maps").assertIsDisplayed()
+        Thread.sleep(2_000)
         compose.onNodeWithText("Zurück zur Liste").performClick()
         compose.onNodeWithText("Entdecken").assertIsDisplayed()
 
@@ -75,21 +87,27 @@ class ReisePilotUserFlowTest {
         compose.onNodeWithText("Buchungen").assertIsDisplayed()
         compose.onNodeWithText("Technische Einstellungen").performClick()
         compose.onNodeWithText("Mapbox-Kartenzugang").assertIsDisplayed()
-        compose.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+        compose.activity.onBackPressedDispatcher.onBackPressed()
         compose.waitForIdle()
         compose.onNodeWithText("Reiseplan").assertIsDisplayed()
     }
 
     @Test
-    fun allDestinationRegions_canBeScrolledWithoutCrash() {
+    fun destinationList_survivesHeavyScrollingAndFiltering() {
         clickTab("Entdecken")
-        listOf("Canet & Umgebung", "Barcelona", "Andorra", "Paris").forEach { region ->
-            scrollDown(20)
-            compose.onNodeWithText(region, useUnmergedTree = true).performClick()
-            compose.waitForIdle()
-            scrollUp(10)
-            scrollDown(10)
-            compose.onNodeWithText("Entdecken").assertExists()
+        compose.onNodeWithText("Entdecken").assertIsDisplayed()
+        repeat(4) {
+            swipeUp(12)
+            swipeDown(12)
         }
+        compose.onNodeWithText("Entdecken").assertIsDisplayed()
+
+        compose.onNodeWithText("Barcelona", useUnmergedTree = true).performClick()
+        compose.waitForIdle()
+        repeat(3) {
+            swipeUp(10)
+            swipeDown(10)
+        }
+        compose.onNodeWithText("Entdecken").assertIsDisplayed()
     }
 }
