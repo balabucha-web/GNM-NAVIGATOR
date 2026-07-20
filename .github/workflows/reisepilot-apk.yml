@@ -1,4 +1,4 @@
-name: Build ReisePilot 4.3 APK
+name: Build ReisePilot 4.4 APK
 
 on:
   push:
@@ -50,6 +50,10 @@ jobs:
             python3 scripts/apply_v42_upgrade.py
             rm scripts/apply_v42_upgrade.py
           fi
+          if [ -f scripts/apply_v44_upgrade.py ]; then
+            python3 scripts/apply_v44_upgrade.py
+            rm scripts/apply_v44_upgrade.py
+          fi
       - name: Commit migrated sources to release branch
         if: github.event_name == 'push'
         run: |
@@ -73,18 +77,19 @@ jobs:
               'FuelPriceClient.kt': ['CountryResolver', 'Fahrumweg geprüft', 'MotorwayFilter'],
               'TripTrackingService.kt': ['sessionId != requestSession', 'val newlyCrossed = crossed.filter'],
               'NativeTripMap.kt': ['tiles.openfreemap.org/styles/liberty', 'fun dispose()', '€/l'],
-              'LiveScreen.kt': ['Geschätzter Tankinhalt', 'Frankreich-Verkehr live', 'LinearProgressIndicator'],
-              'WikiImage.kt': ['travel_photos_v43', 'downloadImage'],
+              'LiveScreen.kt': ['Geschätzter Tankinhalt', 'Frankreich-Verkehr live', 'Deutschland-Verkehr live', 'Ankunftszeit', 'LinearProgressIndicator'],
+              'WikiImage.kt': ['travel_photos_v44', 'resolveGallery', 'commonsGeoCandidates'],
               'BisonTrafficClient.kt': ['RecapTraficFranceEntiere.html', 'Straße gesperrt'],
+              'GermanTrafficClient.kt': ['verkehr.autobahn.de/o/autobahn', 'services/roadworks'],
           }
           for name, markers in required.items():
               text = (root / name).read_text()
               for marker in markers:
                   assert marker in text, f'{name}: missing {marker}'
           version = Path('app/build.gradle.kts').read_text()
-          assert 'versionName = "4.3"' in version
-          assert 'versionCode = 12' in version
-          print('PASS: ReisePilot 4.3 release guards present')
+          assert 'versionName = "4.4"' in version
+          assert 'versionCode = 13' in version
+          print('PASS: ReisePilot 4.4 release guards present')
           PY
       - name: Check Wikimedia image service
         run: python3 scripts/check_wikimedia_images.py
@@ -93,10 +98,12 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           text = Path('app/src/main/java/de/balabucha/reisepilot/DiscoverScreen.kt').read_text()
-          assert text.count('AsyncImage(') >= 2, 'List thumbnail and detail image loaders are required'
+          assert text.count('AsyncImage(') >= 2, 'List thumbnail and detail gallery image loaders are required'
+          assert 'itemsIndexed(gallery' in text and '1} / ${gallery.size}' in text
           resolver = Path('app/src/main/java/de/balabucha/reisepilot/WikiImage.kt').read_text()
-          assert 'Uri.fromFile' in resolver and 'downloadImage' in resolver
-          print('PASS: destination photos are downloaded to local cache')
+          assert 'resolveGallery' in resolver and 'commonsGeoCandidates' in resolver
+          assert 'imageFallback' not in resolver, 'Generic region photos must not replace exact POI photos'
+          print('PASS: exact POI photo gallery and local cache are present')
           PY
       - name: Test, lint and build debug APK
         id: build
@@ -107,21 +114,21 @@ jobs:
           code=${PIPESTATUS[0]}
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           if [ "$code" -eq 0 ]; then
-            sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/ReisePilot-Live-v4.3.sha256
+            sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/ReisePilot-Live-v4.4.sha256
           fi
           exit 0
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-v4.3-build-log
+          name: ReisePilot-v4.4-build-log
           path: reisepilot/build.log
           if-no-files-found: warn
       - name: Upload test and lint reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-v4.3-reports
+          name: ReisePilot-v4.4-reports
           path: |
             reisepilot/app/build/reports/tests/testDebugUnitTest
             reisepilot/app/build/reports/lint-results-debug.html
@@ -130,10 +137,10 @@ jobs:
         if: steps.build.outputs.exit_code == '0'
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-Live-v4.3-APK
+          name: ReisePilot-Live-v4.4-APK
           path: |
             reisepilot/app/build/outputs/apk/debug/app-debug.apk
-            reisepilot/app/build/outputs/apk/debug/ReisePilot-Live-v4.3.sha256
+            reisepilot/app/build/outputs/apk/debug/ReisePilot-Live-v4.4.sha256
           if-no-files-found: error
       - name: Fail when validation failed
         if: steps.build.outputs.exit_code != '0'
