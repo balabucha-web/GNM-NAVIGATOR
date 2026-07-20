@@ -22,8 +22,9 @@ internal object CountryResolver {
     )
     private val spain = listOf(
         GeoPoint(43.80, -9.50), GeoPoint(43.45, -1.70), GeoPoint(42.85, 0.70),
-        GeoPoint(42.42, 3.30), GeoPoint(36.00, -5.20), GeoPoint(36.00, -7.50),
-        GeoPoint(41.90, -9.50)
+        GeoPoint(42.42, 3.30), GeoPoint(41.80, 3.20), GeoPoint(41.00, 2.90),
+        GeoPoint(39.00, 0.30), GeoPoint(37.00, -1.80), GeoPoint(36.00, -5.20),
+        GeoPoint(36.00, -7.50), GeoPoint(41.90, -9.50)
     )
     private val france = listOf(
         GeoPoint(51.15, 2.40), GeoPoint(49.70, -1.95), GeoPoint(48.45, -4.85),
