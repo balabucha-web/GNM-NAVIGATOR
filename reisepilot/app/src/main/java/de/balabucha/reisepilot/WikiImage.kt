@@ -30,9 +30,9 @@ object WikiImageResolver {
 
     private val memory = ConcurrentHashMap<String, List<String>>()
     private val retryAfter = ConcurrentHashMap<String, Long>()
-    private val gate = Semaphore(4)
+    private val gate = Semaphore(2)
     private const val RETRY_DELAY_MS = 5L * 60L * 1000L
-    private const val MAX_IMAGE_BYTES = 12L * 1024L * 1024L
+    private const val MAX_IMAGE_BYTES = 8L * 1024L * 1024L
 
     suspend fun resolve(context: Context, place: TravelPlace): String? =
         resolveGallery(context, place, 1).firstOrNull()
@@ -93,30 +93,38 @@ object WikiImageResolver {
     }
 
     /**
-     * The first round is intentionally small and parallel: two Wikipedia searches,
-     * one exact Commons search and, for galleries, a coordinate search. Only when
-     * this is insufficient is one additional exact alias requested.
+     * List thumbnails perform only one exact Commons search. The detail gallery
+     * adds a coordinate search and one Wikipedia request in parallel. This keeps
+     * scrolling responsive while still providing several exact POI photos.
      */
     private suspend fun collectCandidates(place: TravelPlace, wanted: Int): List<Candidate> {
         val queries = exactQueries(place)
         val primary = queries.first()
+
+        if (wanted == 1) {
+            val commons = runCatching {
+                commonsSearchCandidates(primary, place, 13)
+            }.getOrDefault(emptyList())
+            val rankedCommons = rankCandidates(commons, place)
+            if (rankedCommons.isNotEmpty()) return rankedCommons
+            return rankCandidates(
+                runCatching { wikipediaCandidates("en", primary, place, 12) }.getOrDefault(emptyList()),
+                place
+            )
+        }
+
         val initial = supervisorScope {
-            buildList {
-                add(async(Dispatchers.IO) {
-                    runCatching { wikipediaCandidates("de", primary, place, 12) }.getOrDefault(emptyList())
-                })
-                add(async(Dispatchers.IO) {
+            listOf(
+                async(Dispatchers.IO) {
+                    runCatching { commonsSearchCandidates(primary, place, 13) }.getOrDefault(emptyList())
+                },
+                async(Dispatchers.IO) {
+                    runCatching { commonsGeoCandidates(place) }.getOrDefault(emptyList())
+                },
+                async(Dispatchers.IO) {
                     runCatching { wikipediaCandidates("en", primary, place, 11) }.getOrDefault(emptyList())
-                })
-                add(async(Dispatchers.IO) {
-                    runCatching { commonsSearchCandidates(primary, place, 12) }.getOrDefault(emptyList())
-                })
-                if (wanted > 1) {
-                    add(async(Dispatchers.IO) {
-                        runCatching { commonsGeoCandidates(place) }.getOrDefault(emptyList())
-                    })
                 }
-            }.awaitAll().flatten()
+            ).awaitAll().flatten()
         }
 
         var ranked = rankCandidates(initial, place)
@@ -147,7 +155,7 @@ object WikiImageResolver {
             .sortedByDescending { it.score }
             .distinctBy { it.url.substringBefore('?') }
             .distinctBy { normalizedStem(it.label) }
-            .take(16)
+            .take(14)
             .toList()
     }
 
@@ -174,7 +182,7 @@ object WikiImageResolver {
         "Galeries Lafayette Dachterrasse" to listOf("Galeries Lafayette Paris rooftop terrace"),
         "Strand & Promenade Canet" to listOf("Canet Plage beach promenade France"),
         "Fischerdorf & Étang" to listOf("Village de pecheurs etang de Canet Saint Nazaire"),
-        "Banyuls & Biodiversarium" to listOf("Biodiversarium Banyuls sur Mer", "Banyuls sur Mer coast"),
+        "Banyuls & Biodiversarium" to listOf("Biodiversarium Banyuls sur Mer", "Banyuls Sur Mer coast"),
         "Camí de les Pardines & Engolasters" to listOf("Cami de les Pardines Andorra", "Lake Engolasters Andorra"),
         "Tristaina-Seen & Solar-Aussichtspunkt" to listOf("Mirador Solar de Tristaina", "Estanys de Tristaina Andorra"),
         "Montjuïc, Seilbahn & Burg" to listOf("Montjuic cable car Barcelona", "Montjuic Castle Barcelona"),
@@ -185,9 +193,9 @@ object WikiImageResolver {
     private fun wikipediaCandidates(language: String, query: String, place: TravelPlace, bonus: Int): List<Candidate> {
         val encoded = URLEncoder.encode(query, "UTF-8")
         val endpoint = "https://$language.wikipedia.org/w/api.php" +
-            "?action=query&generator=search&gsrnamespace=0&gsrlimit=8" +
+            "?action=query&generator=search&gsrnamespace=0&gsrlimit=6" +
             "&gsrsearch=$encoded&prop=pageimages&piprop=thumbnail" +
-            "&pithumbsize=1280&format=json&formatversion=2&origin=*"
+            "&pithumbsize=900&format=json&formatversion=2&origin=*"
         val root = JSONObject(http(endpoint))
         val pages = root.optJSONObject("query")?.optJSONArray("pages") ?: JSONArray()
         return buildList {
@@ -204,17 +212,17 @@ object WikiImageResolver {
         val search = "$query -logo -flag -map -icon -diagram -coat of arms"
         val encoded = URLEncoder.encode(search, "UTF-8")
         val endpoint = "https://commons.wikimedia.org/w/api.php" +
-            "?action=query&generator=search&gsrnamespace=6&gsrlimit=24" +
+            "?action=query&generator=search&gsrnamespace=6&gsrlimit=18" +
             "&gsrsearch=$encoded&prop=imageinfo&iiprop=url%7Cmime%7Csize" +
-            "&iiurlwidth=1280&format=json&formatversion=2&origin=*"
+            "&iiurlwidth=900&format=json&formatversion=2&origin=*"
         return parseCommons(endpoint, place, query, bonus)
     }
 
     private fun commonsGeoCandidates(place: TravelPlace): List<Candidate> {
         val endpoint = "https://commons.wikimedia.org/w/api.php" +
             "?action=query&generator=geosearch&ggsprimary=all&ggsnamespace=6" +
-            "&ggsradius=1800&ggslimit=28&ggscoord=${place.point.lat}%7C${place.point.lon}" +
-            "&prop=imageinfo&iiprop=url%7Cmime%7Csize&iiurlwidth=1280" +
+            "&ggsradius=1600&ggslimit=24&ggscoord=${place.point.lat}%7C${place.point.lon}" +
+            "&prop=imageinfo&iiprop=url%7Cmime%7Csize&iiurlwidth=900" +
             "&format=json&formatversion=2&origin=*"
         return parseCommons(endpoint, place, place.imageQuery, 9)
     }
@@ -308,8 +316,8 @@ object WikiImageResolver {
         val connection = URL(source).openConnection() as HttpURLConnection
         val temporary = File(target.parentFile, "${target.name}.part")
         return try {
-            connection.connectTimeout = 8_000
-            connection.readTimeout = 16_000
+            connection.connectTimeout = 7_000
+            connection.readTimeout = 12_000
             connection.instanceFollowRedirects = true
             connection.setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
             connection.setRequestProperty("Accept-Language", "de,en;q=0.8")
@@ -354,8 +362,8 @@ object WikiImageResolver {
     private fun http(url: String): String {
         val connection = URL(url).openConnection() as HttpURLConnection
         return try {
-            connection.connectTimeout = 7_000
-            connection.readTimeout = 11_000
+            connection.connectTimeout = 6_000
+            connection.readTimeout = 10_000
             connection.instanceFollowRedirects = true
             connection.setRequestProperty("Accept", "application/json")
             connection.setRequestProperty("Accept-Language", "de,en;q=0.8")
