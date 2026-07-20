@@ -72,13 +72,22 @@ CODE=${PIPESTATUS[0]}
 set -e
 echo "PHASE instrumentation exit=$CODE" >> "$SUMMARY"
 
-"$ADB_BIN" shell am force-stop de.balabucha.reisepilot || true
+APP_APK="app/build/outputs/apk/debug/app-debug.apk"
+"$ADB_BIN" uninstall de.balabucha.reisepilot >/dev/null 2>&1 || true
+"$ADB_BIN" install -r "$APP_APK" | tee emulator-app-install.txt
+"$ADB_BIN" shell pm grant de.balabucha.reisepilot android.permission.ACCESS_FINE_LOCATION || true
+"$ADB_BIN" shell pm grant de.balabucha.reisepilot android.permission.ACCESS_COARSE_LOCATION || true
+"$ADB_BIN" shell pm grant de.balabucha.reisepilot android.permission.POST_NOTIFICATIONS || true
 "$ADB_BIN" shell am start -n de.balabucha.reisepilot/.MainActivity | tee emulator-launch.txt
-sleep 4
+sleep 5
+"$ADB_BIN" exec-out screencap -p > emulator-start-screen.png || true
+"$ADB_BIN" shell uiautomator dump /sdcard/reisepilot-start.xml >/dev/null 2>&1 || true
+"$ADB_BIN" pull /sdcard/reisepilot-start.xml emulator-start.xml >/dev/null 2>&1 || true
 "$ADB_BIN" shell monkey -p de.balabucha.reisepilot \
   --throttle 90 --pct-syskeys 0 --pct-appswitch 0 -v 250 \
   > monkey.log 2>&1 || true
 sleep 3
+"$ADB_BIN" exec-out screencap -p > emulator-after-monkey.png || true
 "$ADB_BIN" logcat -d > emulator-logcat.txt
 
 if grep -E 'FATAL EXCEPTION|Process: de\.balabucha\.reisepilot.*has died|ANR in de\.balabucha\.reisepilot' emulator-logcat.txt; then
