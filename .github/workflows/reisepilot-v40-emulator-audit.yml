@@ -12,7 +12,7 @@ on:
 jobs:
   emulator-audit:
     runs-on: ubuntu-22.04
-    timeout-minutes: 50
+    timeout-minutes: 55
     permissions:
       contents: read
     steps:
@@ -35,39 +35,19 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Install and test as user on Android API 34
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 34
-          target: google_apis
-          arch: x86_64
-          profile: pixel_6
-          disable-animations: true
-          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: |
-            cd reisepilot
-            set +e
-            echo 'PHASE emulator booted' >> emulator-summary.txt
-            adb devices -l | tee emulator-devices.txt
-            adb shell getprop ro.build.version.sdk | tee emulator-api.txt
-            adb logcat -c
-            adb emu geo fix 11.4000 53.6400
-            gradle :app:connectedDebugAndroidTest --stacktrace 2>&1 | tee emulator-test.log
-            code=${PIPESTATUS[0]}
-            echo "PHASE instrumentation exit=$code" >> emulator-summary.txt
-            adb shell am force-stop de.balabucha.reisepilot || true
-            adb shell am start -n de.balabucha.reisepilot/.MainActivity | tee emulator-launch.txt
-            sleep 4
-            adb shell monkey -p de.balabucha.reisepilot --throttle 90 --pct-syskeys 0 --pct-appswitch 0 -v 250 > monkey.log 2>&1 || true
-            sleep 3
-            adb logcat -d > emulator-logcat.txt
-            if grep -E 'FATAL EXCEPTION|Process: de\.balabucha\.reisepilot.*has died|ANR in de\.balabucha\.reisepilot' emulator-logcat.txt; then
-              echo 'RESULT app crash or ANR detected' >> emulator-summary.txt
-              code=1
-            else
-              echo 'RESULT no ReisePilot crash or ANR in logcat' >> emulator-summary.txt
-            fi
-            exit $code
+          ls -la /dev/kvm || true
+      - name: Install Android API 34 emulator image
+        run: |
+          cd reisepilot
+          echo 'PHASE install emulator image' >> emulator-summary.txt
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager 'platform-tools' 'emulator' 'platforms;android-34' 'system-images;android-34;google_apis;x86_64' 2>&1 | tee emulator-sdk-install.log
+          echo no | avdmanager create avd --force --name reisepilot_api34 --package 'system-images;android-34;google_apis;x86_64' --device 'pixel_6' 2>&1 | tee emulator-avd-create.log
+      - name: Boot, install and test as a user
+        run: |
+          cd reisepilot
+          chmod +x scripts/run_emulator_audit.sh
+          scripts/run_emulator_audit.sh
       - name: Upload emulator evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -76,6 +56,9 @@ jobs:
           path: |
             reisepilot/emulator-summary.txt
             reisepilot/emulator-compile.log
+            reisepilot/emulator-sdk-install.log
+            reisepilot/emulator-avd-create.log
+            reisepilot/emulator-boot.log
             reisepilot/emulator-devices.txt
             reisepilot/emulator-api.txt
             reisepilot/emulator-test.log
