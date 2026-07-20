@@ -11,6 +11,7 @@ import androidx.test.rule.GrantPermissionRule
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class ReisePilotUserFlowTest {
@@ -68,7 +69,7 @@ class ReisePilotUserFlowTest {
     }
 
     @Test
-    fun primaryUserJourney_remainsStable() {
+    fun primaryUserJourney_remainsStable_andCachesRealDestinationPhoto() {
         compose.onNodeWithText("ReisePilot").assertIsDisplayed()
         clickControl("Fahrt starten")
         compose.waitUntil(15_000) {
@@ -90,10 +91,15 @@ class ReisePilotUserFlowTest {
         clickTab("Entdecken")
         compose.onNodeWithText("Ziel suchen").assertIsDisplayed()
 
+        val photoDirectory = File(compose.activity.cacheDir, "travel_photos_v43")
+        photoDirectory.deleteRecursively()
+
         findByScrolling("Strand & Promenade Canet")
         clickControl("Strand & Promenade Canet")
         compose.onNodeWithText("Route in Google Maps").assertIsDisplayed()
-        Thread.sleep(2_000)
+        compose.waitUntil(45_000) {
+            photoDirectory.listFiles()?.any { it.isFile && it.length() > 4_096L } == true
+        }
         clickControl("Zurück zur Liste")
         compose.onNodeWithText("Ziel suchen").assertExists()
 
