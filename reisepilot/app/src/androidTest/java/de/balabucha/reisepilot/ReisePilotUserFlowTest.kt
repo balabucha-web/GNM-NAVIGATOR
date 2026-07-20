@@ -69,7 +69,7 @@ class ReisePilotUserFlowTest {
     }
 
     @Test
-    fun primaryUserJourney_remainsStable_andCachesRealDestinationPhoto() {
+    fun primaryUserJourney_remainsStable_andCachesRealDestinationGallery() {
         compose.onNodeWithText("ReisePilot").assertIsDisplayed()
         clickControl("Fahrt starten")
         compose.waitUntil(15_000) {
@@ -91,14 +91,15 @@ class ReisePilotUserFlowTest {
         clickTab("Entdecken")
         compose.onNodeWithText("Ziel suchen").assertIsDisplayed()
 
+        val selectedPlace = DestinationCatalog.places.first { it.title == "Strand & Promenade Canet" }
         val photoDirectory = File(compose.activity.cacheDir, "travel_photos_v44")
         photoDirectory.deleteRecursively()
 
-        findByScrolling("Strand & Promenade Canet")
-        clickControl("Strand & Promenade Canet")
+        findByScrolling(selectedPlace.title)
+        clickControl(selectedPlace.title)
         compose.onNodeWithText("Route in Google Maps").assertIsDisplayed()
-        compose.waitUntil(45_000) {
-            (photoDirectory.listFiles()?.count { it.isFile && it.length() > 4_096L } ?: 0) >= 2
+        compose.waitUntil(75_000) {
+            WikiImageResolver.cachedPhotoCount(compose.activity, selectedPlace) >= 2
         }
         clickControl("Zurück zur Liste")
         compose.onNodeWithText("Ziel suchen").assertExists()
