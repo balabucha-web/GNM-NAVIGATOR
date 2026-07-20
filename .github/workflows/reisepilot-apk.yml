@@ -35,15 +35,7 @@ jobs:
       - name: Check Wikimedia image service
         run: python3 scripts/check_wikimedia_images.py
       - name: Guard scrolling list against network images
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          text = Path('app/src/main/java/de/balabucha/reisepilot/DiscoverScreen.kt').read_text()
-          list_part = text.split('private fun PlaceListItem', 1)[1].split('private fun PlaceDetailSheet', 1)[0]
-          assert 'AsyncImage' not in list_part, 'Scrolling list must never load images'
-          assert text.count('AsyncImage(') == 1, 'Exactly one image loader is allowed, in the detail sheet'
-          print('PASS: no image or network loading in scrolling destination list')
-          PY
+        run: python3 scripts/check_discover_architecture.py
       - name: Test, lint and build debug APK
         id: build
         shell: bash
