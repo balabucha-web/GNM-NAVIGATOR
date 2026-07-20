@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -273,7 +274,7 @@ private fun PlaceListItem(
     onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().testTag(destinationCardTag(place)).clickable(onClick = onClick),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = androidx.compose.foundation.BorderStroke(1.dp, Line)
@@ -458,3 +459,6 @@ private fun regionColor(region: TravelRegion): Color = when (region) {
     TravelRegion.ANDORRA -> Color(0xFFAFCDB5)
     TravelRegion.PARIS -> Color(0xFFC8C1DF)
 }
+
+internal fun destinationCardTag(place: TravelPlace): String =
+    "destination-card:${place.region.name}:${place.title}"
