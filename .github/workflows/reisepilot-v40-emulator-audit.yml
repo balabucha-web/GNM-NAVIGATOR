@@ -47,6 +47,9 @@ jobs:
           if [ -f scripts/apply_v44_upgrade.py ]; then
             python3 scripts/apply_v44_upgrade.py
           fi
+          if [ -f scripts/apply_destination_test_tags.py ]; then
+            python3 scripts/apply_destination_test_tags.py
+          fi
       - name: Compile app and emulator tests first
         run: |
           set -o pipefail
