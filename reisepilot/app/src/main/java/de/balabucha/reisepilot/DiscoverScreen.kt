@@ -1,10 +1,13 @@
 package de.balabucha.reisepilot
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -20,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiscoverScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifier) {
     val location = snapshot.lat?.let { lat -> snapshot.lon?.let { lon -> GeoPoint(lat, lon) } }
@@ -29,55 +33,42 @@ fun DiscoverScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Mod
     var selectedRegion by rememberSaveable { mutableStateOf(automaticRegion) }
     var followLocation by rememberSaveable { mutableStateOf(true) }
     var kind by rememberSaveable { mutableStateOf<PlaceKind?>(null) }
+    var query by rememberSaveable { mutableStateOf("") }
+    var selectedPlace by remember { mutableStateOf<TravelPlace?>(null) }
 
     LaunchedEffect(automaticRegion) {
         if (followLocation) selectedRegion = automaticRegion
     }
 
-    val places = remember(selectedRegion, kind, followLocation, location?.lat, location?.lon) {
-        val filtered = DestinationCatalog.forRegion(selectedRegion)
-            .filter { kind == null || it.kind == kind }
-        if (followLocation && location != null && selectedRegion == automaticRegion) {
-            filtered.sortedWith(
-                compareBy<TravelPlace> {
-                    DestinationCatalog.distanceKm(location, it) ?: Double.MAX_VALUE
-                }.thenByDescending { it.priority }
-            )
-        } else {
-            filtered.sortedByDescending { it.priority }
-        }
+    val places = remember(selectedRegion, kind, query, followLocation, location?.lat, location?.lon) {
+        DiscoverLogic.filter(
+            region = selectedRegion,
+            kind = kind,
+            query = query,
+            location = location,
+            followLocation = followLocation && selectedRegion == automaticRegion
+        )
     }
+    val spontaneous = remember(selectedRegion) { DiscoverLogic.spontaneous(selectedRegion) }
 
     Page(
-        title = "Ziele",
-        subtitle = "Sinnvolle Ideen mit Bild, Kurzinfo und direkter Maps-Route",
+        title = "Entdecken",
+        subtitle = "Schnelle Ideen ohne Ladechaos · Bild erst im Zieldetail",
         modifier = modifier
     ) {
         item {
-            AppCard {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Lamp(if (location != null) Light.GREEN else Light.GREY, 14.dp)
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            if (location != null) "Standort: ${automaticRegion.label}" else "Noch kein Standort",
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            if (followLocation) "Region folgt automatisch dem Standort."
-                            else "Region manuell gewählt · beste Ziele zuerst.",
-                            color = Muted,
-                            fontSize = 13.sp
-                        )
-                    }
-                    TextButton(
-                        onClick = {
-                            followLocation = true
-                            selectedRegion = automaticRegion
-                        }
-                    ) { Text("Auto") }
+            RegionControl(
+                selectedRegion = selectedRegion,
+                automaticRegion = automaticRegion,
+                locationAvailable = location != null,
+                followLocation = followLocation,
+                onAuto = {
+                    followLocation = true
+                    selectedRegion = automaticRegion
+                    kind = null
+                    query = ""
                 }
-            }
+            )
         }
 
         item {
@@ -89,6 +80,7 @@ fun DiscoverScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Mod
                             selectedRegion = region
                             followLocation = false
                             kind = null
+                            query = ""
                         },
                         label = { Text(region.label) }
                     )
@@ -96,7 +88,38 @@ fun DiscoverScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Mod
             }
         }
 
-        item { RegionSummary(selectedRegion, DestinationCatalog.forRegion(selectedRegion).size) }
+        item {
+            RegionPlanCard(selectedRegion)
+        }
+
+        if (spontaneous.isNotEmpty()) {
+            item {
+                Text("Spontan passend", style = MaterialTheme.typography.titleMedium)
+            }
+            item {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(spontaneous, key = { "quick:${it.region.name}:${it.title}" }) { place ->
+                        SuggestionChip(place = place, onClick = { selectedPlace = place })
+                    }
+                }
+            }
+        }
+
+        item {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                label = { Text("Ziel suchen") },
+                placeholder = { Text("z. B. Strand, Aquarium, Einkauf …") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                trailingIcon = {
+                    if (query.isNotBlank()) {
+                        TextButton(onClick = { query = "" }) { Text("Löschen") }
+                    }
+                }
+            )
+        }
 
         item {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -104,7 +127,7 @@ fun DiscoverScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Mod
                     FilterChip(
                         selected = kind == null,
                         onClick = { kind = null },
-                        label = { Text("Alles") }
+                        label = { Text("Beste zuerst") }
                     )
                 }
                 items(PlaceKind.entries, key = { it.name }) { item ->
@@ -117,11 +140,22 @@ fun DiscoverScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Mod
             }
         }
 
+        item {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("${places.size} passende Ziele", fontWeight = FontWeight.Bold)
+                Text("Antippen für Bild & Route", color = Muted, fontSize = 12.sp)
+            }
+        }
+
         if (places.isEmpty()) {
             item {
                 WarningCard(
                     "Keine Treffer",
-                    "Für diesen Filter ist aktuell nichts Sinnvolles hinterlegt.",
+                    "Suchbegriff oder Filter ändern.",
                     Light.GREY
                 )
             }
@@ -129,29 +163,145 @@ fun DiscoverScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Mod
 
         items(
             items = places,
-            key = { "${it.region.name}:${it.title}" }
+            key = { "place:${it.region.name}:${it.title}" }
         ) { place ->
-            PlaceCard(activity, place, location)
+            PlaceListItem(
+                place = place,
+                distanceKm = DestinationCatalog.distanceKm(location, place),
+                onClick = { selectedPlace = place }
+            )
+        }
+    }
+
+    selectedPlace?.let { place ->
+        PlaceDetailSheet(
+            activity = activity,
+            place = place,
+            distanceKm = DestinationCatalog.distanceKm(location, place),
+            onDismiss = { selectedPlace = null }
+        )
+    }
+}
+
+@Composable
+private fun RegionControl(
+    selectedRegion: TravelRegion,
+    automaticRegion: TravelRegion,
+    locationAvailable: Boolean,
+    followLocation: Boolean,
+    onAuto: () -> Unit
+) {
+    AppCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Lamp(if (locationAvailable) Light.GREEN else Light.GREY, 14.dp)
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(selectedRegion.label, style = MaterialTheme.typography.titleLarge)
+                Text(
+                    when {
+                        !locationAvailable -> "Ohne Tracking ist Canet die Startregion. Region jederzeit manuell wählen."
+                        followLocation -> "Automatisch nach Standort · erkannt: ${automaticRegion.label}"
+                        else -> "Manuell gewählt · automatische Standortauswahl pausiert"
+                    },
+                    color = Muted,
+                    fontSize = 13.sp
+                )
+            }
+            if (!followLocation && locationAvailable) {
+                TextButton(onClick = onAuto) { Text("Auto") }
+            }
         }
     }
 }
 
 @Composable
-private fun RegionSummary(region: TravelRegion, count: Int) {
+private fun RegionPlanCard(region: TravelRegion) {
     AppCard {
-        Text(region.label, style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(6.dp))
-        Text(region.shortPlan, color = Navy, lineHeight = 20.sp)
+        Text("Sinnvoller Aufbau", color = Blue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        Spacer(Modifier.height(5.dp))
+        Text(region.shortPlan, fontWeight = FontWeight.Medium, lineHeight = 20.sp)
         Spacer(Modifier.height(8.dp))
         Text(region.logistics, color = Muted, fontSize = 13.sp, lineHeight = 18.sp)
-        Spacer(Modifier.height(8.dp))
-        Text("$count geprüfte Ideen", color = Blue, fontWeight = FontWeight.Bold, fontSize = 13.sp)
     }
 }
 
 @Composable
-private fun PlaceCard(activity: MainActivity, place: TravelPlace, location: GeoPoint?) {
+private fun SuggestionChip(place: TravelPlace, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        color = regionColor(place.region).copy(alpha = .42f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, regionColor(place.region))
+    ) {
+        Column(Modifier.widthIn(min = 170.dp, max = 230.dp).padding(12.dp)) {
+            Text(place.title, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(4.dp))
+            Text(place.duration, color = Muted, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun PlaceListItem(
+    place: TravelPlace,
+    distanceKm: Double?,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Line)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier.size(46.dp).background(regionColor(place.region), RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(kindSymbol(place.kind), color = Navy, fontWeight = FontWeight.Black, fontSize = 18.sp)
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(place.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(
+                    place.description,
+                    color = Muted,
+                    fontSize = 13.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 17.sp
+                )
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    buildString {
+                        append(place.duration)
+                        distanceKm?.let { append(" · ").append("%.1f".format(it)).append(" km") }
+                        append(" · ").append(place.kind.label)
+                    },
+                    color = Blue,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Text("›", color = Blue, fontSize = 28.sp, fontWeight = FontWeight.Light)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlaceDetailSheet(
+    activity: MainActivity,
+    place: TravelPlace,
+    distanceKm: Double?,
+    onDismiss: () -> Unit
+) {
     val context = LocalContext.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var imageFinished by remember(place.title) { mutableStateOf(false) }
     val imageUrl by produceState<String?>(
         initialValue = null,
@@ -163,43 +313,32 @@ private fun PlaceCard(activity: MainActivity, place: TravelPlace, location: GeoP
         }.getOrNull()
         imageFinished = true
     }
-    val distance = DestinationCatalog.distanceKm(location, place)
 
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Line)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Bg
     ) {
-        Column {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)
+        ) {
             Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(176.dp)
-                    .background(
-                        Brush.linearGradient(
-                            listOf(regionColor(place.region), Color(0xFFE7EEF2))
-                        )
-                    )
+                Modifier.fillMaxWidth().height(230.dp).background(
+                    Brush.linearGradient(listOf(regionColor(place.region), Color(0xFFE7EEF2)))
+                )
             ) {
                 Column(
-                    Modifier
-                        .fillMaxSize()
-                        .padding(18.dp),
-                    verticalArrangement = Arrangement.Center
+                    Modifier.fillMaxSize().padding(20.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    Text(kindSymbol(place.kind), color = Navy.copy(alpha = .55f), fontSize = 48.sp, fontWeight = FontWeight.Black)
                     Text(
-                        place.region.label,
-                        color = Navy.copy(alpha = 0.58f),
-                        fontWeight = FontWeight.Black,
-                        fontSize = 13.sp
-                    )
-                    Text(
-                        if (imageFinished) "Bild momentan nicht verfügbar" else "Bild wird geladen …",
-                        color = Navy.copy(alpha = 0.55f),
-                        fontSize = 12.sp
+                        if (imageFinished) place.region.label else "Bild wird geladen …",
+                        color = Navy.copy(alpha = .65f),
+                        fontWeight = FontWeight.Bold
                     )
                 }
-
                 imageUrl?.let { url ->
                     AsyncImage(
                         model = url,
@@ -208,11 +347,10 @@ private fun PlaceCard(activity: MainActivity, place: TravelPlace, location: GeoP
                         modifier = Modifier.fillMaxSize()
                     )
                 }
-
                 Surface(
-                    color = Navy.copy(alpha = 0.88f),
+                    color = Navy.copy(alpha = .88f),
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.align(Alignment.TopStart).padding(12.dp)
+                    modifier = Modifier.align(Alignment.TopStart).padding(14.dp)
                 ) {
                     Text(
                         place.kind.label,
@@ -224,41 +362,48 @@ private fun PlaceCard(activity: MainActivity, place: TravelPlace, location: GeoP
                 }
             }
 
-            Column(Modifier.padding(16.dp)) {
-                Text(
-                    place.title,
-                    style = MaterialTheme.typography.titleLarge,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(place.description, color = Muted, lineHeight = 20.sp)
-                if (place.tip.isNotBlank()) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Tipp: ${place.tip}",
-                        color = Navy,
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-                Spacer(Modifier.height(10.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(place.duration, color = Blue, fontWeight = FontWeight.Bold)
-                    if (distance != null) {
-                        Text("  ·  ${"%.1f".format(distance)} km", color = Muted)
+            Column(Modifier.padding(18.dp)) {
+                Text(place.title, style = MaterialTheme.typography.headlineMedium)
+                Spacer(Modifier.height(7.dp))
+                Text(place.description, color = Navy, lineHeight = 21.sp)
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AssistChip(onClick = {}, label = { Text(place.duration) })
+                    distanceKm?.let { distance ->
+                        AssistChip(onClick = {}, label = { Text("${"%.1f".format(distance)} km") })
                     }
                 }
-                Spacer(Modifier.height(12.dp))
+                if (place.tip.isNotBlank()) {
+                    Spacer(Modifier.height(12.dp))
+                    WarningCard("Praktischer Tipp", place.tip, Light.GREEN)
+                }
+                Spacer(Modifier.height(14.dp))
                 Button(
-                    onClick = { activity.openPointRoute(place.point, place.title) },
+                    onClick = {
+                        activity.openPointRoute(place.point, place.title)
+                        onDismiss()
+                    },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(13.dp)
+                    shape = RoundedCornerShape(14.dp)
                 ) { Text("Route in Google Maps") }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp)
+                ) { Text("Zurück zur Liste") }
             }
         }
     }
+}
+
+private fun kindSymbol(kind: PlaceKind): String = when (kind) {
+    PlaceKind.HIGHLIGHT -> "★"
+    PlaceKind.FAMILY -> "2+"
+    PlaceKind.NATURE -> "⌁"
+    PlaceKind.QUICK -> "↗"
+    PlaceKind.RAIN -> "☂"
+    PlaceKind.SHOPPING -> "€"
 }
 
 private fun regionColor(region: TravelRegion): Color = when (region) {
