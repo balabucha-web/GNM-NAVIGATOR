@@ -90,7 +90,7 @@ fun ReisePilotApp(activity: MainActivity, snapshot: TripSnapshot) {
             AppTab.START -> LiveScreen(activity, snapshot, Modifier.padding(padding))
             AppTab.ROUTE -> MapScreen(activity, snapshot, Modifier.padding(padding))
             AppTab.DISCOVER -> DiscoverScreen(activity, snapshot, Modifier.padding(padding))
-            AppTab.MORE -> MoreScreen(activity, snapshot, Modifier.padding(padding))
+            AppTab.MORE -> MoreHubScreen(activity, snapshot, Modifier.padding(padding))
         }
     }
 }
