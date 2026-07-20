@@ -12,6 +12,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -62,7 +63,11 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
     Page("Mehr", "Einstellungen und Systemstatus · Version ${BuildConfig.VERSION_NAME}", modifier) {
         item {
             AppCard {
-                Text("Mapbox-Kartenzugang", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "Mapbox-Kartenzugang",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.testTag("technical-settings-screen")
+                )
                 Text(
                     "Der öffentliche Token liefert Live-Route, ETA, Verkehr und Mautdaten.",
                     color = Muted
