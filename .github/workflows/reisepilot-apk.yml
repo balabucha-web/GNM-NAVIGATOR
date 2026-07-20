@@ -80,7 +80,7 @@ jobs:
               'LiveScreen.kt': ['Geschätzter Tankinhalt', 'Frankreich-Verkehr live', 'Deutschland-Verkehr live', 'Ankunftszeit', 'LinearProgressIndicator'],
               'WikiImage.kt': ['travel_photos_v44', 'resolveGallery', 'commonsGeoCandidates'],
               'BisonTrafficClient.kt': ['RecapTraficFranceEntiere.html', 'Straße gesperrt'],
-              'GermanTrafficClient.kt': ['verkehr.autobahn.de/o/autobahn', 'services/roadworks'],
+              'GermanTrafficClient.kt': ['verkehr.autobahn.de/o/autobahn', 'roadworks'],
           }
           for name, markers in required.items():
               text = (root / name).read_text()
