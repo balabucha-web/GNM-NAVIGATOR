@@ -3,6 +3,9 @@ package de.balabucha.reisepilot
 import android.content.Context
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
@@ -27,7 +30,7 @@ object WikiImageResolver {
 
     private val memory = ConcurrentHashMap<String, List<String>>()
     private val retryAfter = ConcurrentHashMap<String, Long>()
-    private val gate = Semaphore(2)
+    private val gate = Semaphore(4)
     private const val RETRY_DELAY_MS = 5L * 60L * 1000L
     private const val MAX_IMAGE_BYTES = 12L * 1024L * 1024L
 
@@ -39,7 +42,10 @@ object WikiImageResolver {
             val wanted = limit.coerceIn(1, 5)
             val key = cacheKey(place)
             val memoryKey = "$key:$wanted"
-            memory[memoryKey]?.filter(::localFileExists)?.takeIf { it.isNotEmpty() }?.let { return@withContext it }
+            memory[memoryKey]
+                ?.filter(::localFileExists)
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { return@withContext it }
 
             val existing = existingFiles(context.applicationContext, key, wanted)
             if (existing.size >= wanted) {
@@ -57,7 +63,7 @@ object WikiImageResolver {
                     return@withPermit afterWait
                 }
 
-                val candidates = runCatching { collectCandidates(place) }.getOrDefault(emptyList())
+                val candidates = runCatching { collectCandidates(place, wanted) }.getOrDefault(emptyList())
                 val usedSources = sourceUrls(context.applicationContext, key).toMutableSet()
                 val local = afterWait.toMutableList()
 
@@ -80,17 +86,50 @@ object WikiImageResolver {
             }
         }
 
-    private fun collectCandidates(place: TravelPlace): List<Candidate> {
-        val queries = exactQueries(place)
-        val all = mutableListOf<Candidate>()
-        queries.forEachIndexed { index, query ->
-            val queryBonus = (10 - index * 2).coerceAtLeast(2)
-            all += wikipediaCandidates("de", query, place, queryBonus)
-            all += wikipediaCandidates("en", query, place, queryBonus)
-            all += commonsSearchCandidates(query, place, queryBonus)
-        }
-        all += commonsGeoCandidates(place)
+    /** Used by the device audit to verify the selected POI, not unrelated list thumbnails. */
+    fun cachedPhotoCount(context: Context, place: TravelPlace): Int {
+        val key = cacheKey(place)
+        return existingFiles(context.applicationContext, key, 5).size
+    }
 
+    /**
+     * The first round is intentionally small and parallel: two Wikipedia searches,
+     * one exact Commons search and, for galleries, a coordinate search. Only when
+     * this is insufficient is one additional exact alias requested.
+     */
+    private suspend fun collectCandidates(place: TravelPlace, wanted: Int): List<Candidate> {
+        val queries = exactQueries(place)
+        val primary = queries.first()
+        val initial = supervisorScope {
+            buildList {
+                add(async(Dispatchers.IO) {
+                    runCatching { wikipediaCandidates("de", primary, place, 12) }.getOrDefault(emptyList())
+                })
+                add(async(Dispatchers.IO) {
+                    runCatching { wikipediaCandidates("en", primary, place, 11) }.getOrDefault(emptyList())
+                })
+                add(async(Dispatchers.IO) {
+                    runCatching { commonsSearchCandidates(primary, place, 12) }.getOrDefault(emptyList())
+                })
+                if (wanted > 1) {
+                    add(async(Dispatchers.IO) {
+                        runCatching { commonsGeoCandidates(place) }.getOrDefault(emptyList())
+                    })
+                }
+            }.awaitAll().flatten()
+        }
+
+        var ranked = rankCandidates(initial, place)
+        if (ranked.size < wanted && queries.size > 1) {
+            val secondary = runCatching {
+                commonsSearchCandidates(queries[1], place, 8)
+            }.getOrDefault(emptyList())
+            ranked = rankCandidates(initial + secondary, place)
+        }
+        return ranked
+    }
+
+    private fun rankCandidates(all: List<Candidate>, place: TravelPlace): List<Candidate> {
         val landmarkTokens = setOf(
             "eiffel", "trocadero", "louvre", "sacre", "montmartre", "versailles", "disneyland",
             "sagrada", "guell", "batllo", "pedrera", "caldea", "tristaina", "collioure"
@@ -102,13 +141,13 @@ object WikiImageResolver {
             .map { candidate ->
                 val labelTokens = tokens(candidate.label)
                 val alienLandmarks = labelTokens.intersect(landmarkTokens - wanted)
-                candidate.copy(score = candidate.score - alienLandmarks.size * 40)
+                candidate.copy(score = candidate.score - alienLandmarks.size * 45)
             }
             .filter { it.score >= 10 }
             .sortedByDescending { it.score }
             .distinctBy { it.url.substringBefore('?') }
             .distinctBy { normalizedStem(it.label) }
-            .take(18)
+            .take(16)
             .toList()
     }
 
@@ -120,15 +159,11 @@ object WikiImageResolver {
             TravelRegion.PARIS -> "Paris"
         }
         val aliases = curatedAliases[place.title].orEmpty()
-        val titleParts = place.title
-            .split(" & ", " / ", ",")
-            .map { it.trim() }
-            .filter { it.length >= 4 }
-            .map { "$it $city" }
-        return (aliases + place.imageQuery + "${place.title} $city" + titleParts)
+        return (aliases + place.imageQuery + "${place.title} $city")
             .map(String::trim)
             .filter(String::isNotBlank)
             .distinct()
+            .take(3)
     }
 
     private val curatedAliases = mapOf(
@@ -178,7 +213,7 @@ object WikiImageResolver {
     private fun commonsGeoCandidates(place: TravelPlace): List<Candidate> {
         val endpoint = "https://commons.wikimedia.org/w/api.php" +
             "?action=query&generator=geosearch&ggsprimary=all&ggsnamespace=6" +
-            "&ggsradius=2500&ggslimit=36&ggscoord=${place.point.lat}%7C${place.point.lon}" +
+            "&ggsradius=1800&ggslimit=28&ggscoord=${place.point.lat}%7C${place.point.lon}" +
             "&prop=imageinfo&iiprop=url%7Cmime%7Csize&iiurlwidth=1280" +
             "&format=json&formatversion=2&origin=*"
         return parseCommons(endpoint, place, place.imageQuery, 9)
@@ -273,8 +308,8 @@ object WikiImageResolver {
         val connection = URL(source).openConnection() as HttpURLConnection
         val temporary = File(target.parentFile, "${target.name}.part")
         return try {
-            connection.connectTimeout = 10_000
-            connection.readTimeout = 22_000
+            connection.connectTimeout = 8_000
+            connection.readTimeout = 16_000
             connection.instanceFollowRedirects = true
             connection.setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
             connection.setRequestProperty("Accept-Language", "de,en;q=0.8")
@@ -319,8 +354,8 @@ object WikiImageResolver {
     private fun http(url: String): String {
         val connection = URL(url).openConnection() as HttpURLConnection
         return try {
-            connection.connectTimeout = 8_000
-            connection.readTimeout = 14_000
+            connection.connectTimeout = 7_000
+            connection.readTimeout = 11_000
             connection.instanceFollowRedirects = true
             connection.setRequestProperty("Accept", "application/json")
             connection.setRequestProperty("Accept-Language", "de,en;q=0.8")
