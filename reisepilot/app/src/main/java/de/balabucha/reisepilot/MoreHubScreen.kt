@@ -20,7 +20,7 @@ fun MoreHubScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modi
     if (technical) {
         BackHandler { technical = false }
         Box(modifier.fillMaxSize()) {
-            MoreScreen(activity, snapshot, Modifier.fillMaxSize().testTag("technical-settings-screen"))
+            MoreScreen(activity, snapshot, Modifier.fillMaxSize())
             SmallFloatingActionButton(
                 onClick = { technical = false },
                 containerColor = Navy,
