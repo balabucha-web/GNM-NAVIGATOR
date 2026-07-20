@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - reisepilot-v40-emulator-audit
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
