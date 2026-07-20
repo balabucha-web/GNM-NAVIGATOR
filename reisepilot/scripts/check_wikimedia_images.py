@@ -10,37 +10,92 @@ QUERIES = [
     "Sagrada Familia Barcelona",
     "Roc del Quer Andorra",
     "Eiffel Tower Paris",
+    "Casa Batllo Barcelona facade",
+    "Sant Joan de Caselles Andorra",
+    "Atelier des Lumieres Paris",
+    "Anse de Paulilles France",
 ]
 
 
-def find_image(query: str) -> str | None:
-    params = {
-        "action": "query",
-        "generator": "search",
-        "gsrnamespace": "6",
-        "gsrlimit": "8",
-        "gsrsearch": f"{query} -logo -flag -map",
-        "prop": "imageinfo",
-        "iiprop": "url|mime",
-        "iiurlwidth": "1200",
-        "format": "json",
-        "formatversion": "2",
-    }
-    url = "https://commons.wikimedia.org/w/api.php?" + urllib.parse.urlencode(params)
+def request_json(base: str, params: dict[str, str]) -> dict:
+    url = base + "?" + urllib.parse.urlencode(params)
     request = urllib.request.Request(
         url,
-        headers={"User-Agent": "ReisePilot/3.4 CI image smoke test"},
+        headers={
+            "User-Agent": "ReisePilot/4.2 CI image smoke test",
+            "Accept": "application/json",
+            "Accept-Language": "de,en;q=0.8",
+        },
     )
     with urllib.request.urlopen(request, timeout=20) as response:
-        payload = json.load(response)
+        return json.load(response)
+
+
+def usable(url: object) -> bool:
+    if not isinstance(url, str) or not url.startswith("https://"):
+        return False
+    clean = url.split("?", 1)[0].lower()
+    return not clean.endswith((".pdf", ".djvu", ".tif", ".tiff", ".svg", ".gif"))
+
+
+def wikipedia_image(query: str) -> str | None:
+    payload = request_json(
+        "https://en.wikipedia.org/w/api.php",
+        {
+            "action": "query",
+            "generator": "search",
+            "gsrnamespace": "0",
+            "gsrlimit": "6",
+            "gsrsearch": query,
+            "prop": "pageimages",
+            "piprop": "thumbnail",
+            "pithumbsize": "1000",
+            "format": "json",
+            "formatversion": "2",
+            "origin": "*",
+        },
+    )
+    for page in payload.get("query", {}).get("pages", []):
+        candidate = (page.get("thumbnail") or {}).get("source")
+        if usable(candidate):
+            return candidate
+    return None
+
+
+def commons_image(query: str) -> str | None:
+    payload = request_json(
+        "https://commons.wikimedia.org/w/api.php",
+        {
+            "action": "query",
+            "generator": "search",
+            "gsrnamespace": "6",
+            "gsrlimit": "12",
+            "gsrsearch": f"{query} -logo -flag -map -icon",
+            "prop": "imageinfo",
+            "iiprop": "url|mime|size",
+            "iiurlwidth": "1000",
+            "format": "json",
+            "formatversion": "2",
+            "origin": "*",
+        },
+    )
     for page in payload.get("query", {}).get("pages", []):
         infos = page.get("imageinfo") or []
         if not infos:
             continue
-        candidate = infos[0].get("thumburl") or infos[0].get("url")
-        if isinstance(candidate, str) and candidate.startswith("https://"):
+        info = infos[0]
+        if info.get("mime") not in {"image/jpeg", "image/png", "image/webp"}:
+            continue
+        if 0 < int(info.get("width") or 0) < 400:
+            continue
+        candidate = info.get("thumburl") or info.get("url")
+        if usable(candidate):
             return candidate
     return None
+
+
+def find_image(query: str) -> str | None:
+    return wikipedia_image(query) or commons_image(query)
 
 
 def main() -> int:
@@ -57,7 +112,7 @@ def main() -> int:
                     print(f"ERROR {query}: {exc}")
                 time.sleep(1)
         if result:
-            print(f"PASS {query}: {result[:100]}")
+            print(f"PASS {query}: {result[:120]}")
         else:
             failures.append(query)
     if failures:
