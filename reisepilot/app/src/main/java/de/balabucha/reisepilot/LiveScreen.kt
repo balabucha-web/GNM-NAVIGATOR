@@ -56,6 +56,17 @@ fun LiveScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
         }
     }
 
+
+    val germanTraffic by produceState(
+        initialValue = GermanTrafficSummary(),
+        chosen
+    ) {
+        while (true) {
+            value = withContext(Dispatchers.IO) { GermanTrafficClient.load(chosen) }
+            delay(5L * 60L * 1000L)
+        }
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
@@ -98,7 +109,7 @@ fun LiveScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Metric(
-                    "ETA",
+                    "Ankunftszeit",
                     snapshot.etaEpochMs?.let(::formatTime) ?: "–",
                     snapshot.scheduleLight,
                     Modifier.weight(1f)
@@ -133,6 +144,7 @@ fun LiveScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
         snapshot.fuelSuggestion?.let { suggestion ->
             item { FuelSuggestionCard(activity, suggestion) }
         }
+        item { GermanyTrafficCard(germanTraffic, chosen) }
         item { BisonTrafficCard(bisonSummary, chosen) }
         item { AutomaticStatus(snapshot, tokenValid) }
 
@@ -351,6 +363,45 @@ private fun FuelGaugeCard(snapshot: TripSnapshot, capacity: Double, consumption:
                 Text("von ${"%.0f".format(capacity)} L · ${(fraction * 100).roundToInt()} %", color = Muted, fontSize = 12.sp)
             }
         }
+    }
+}
+
+@Composable
+private fun GermanyTrafficCard(summary: GermanTrafficSummary, stage: Stage) {
+    AppCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Deutschland-Verkehr live", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    if (stage == Stage.SATURDAY) "Autobahn-App-Daten · A24, A10, A9, A6 und A5" else "Deutsche Etappe ist am Sonntag nicht aktiv",
+                    color = Muted,
+                    fontSize = 12.sp
+                )
+            }
+            AssistChip(onClick = {}, label = { Text(if (stage == Stage.SATURDAY) "LIVE" else "–") })
+        }
+        if (summary.updated.isNotBlank()) {
+            Text("Stand: ${summary.updated}", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+        }
+        Spacer(Modifier.height(8.dp))
+        when {
+            stage != Stage.SATURDAY -> StatusLine("Deutschland", "Für die Sonntagsroute sind die französischen Meldungen relevant", Light.GREY)
+            summary.error != null -> WarningCard("Deutschland-Verkehr nicht erreichbar", summary.error, Light.YELLOW)
+            summary.events.isEmpty() -> StatusLine("Route", "Keine aktuelle Warnung, Sperrung oder Baustellenmeldung auf den vorgesehenen Autobahnen", Light.GREEN)
+            else -> summary.events.take(5).forEach { event ->
+                val light = when (event.severity) {
+                    3 -> Light.RED
+                    2 -> Light.YELLOW
+                    else -> Light.GREY
+                }
+                StatusLine("${event.road} · ${event.title}", event.detail, light)
+            }
+        }
+        Text(
+            "Aktualisierung alle fünf Minuten. Mapbox berechnet zusätzlich die konkrete Verzögerung und Ankunftszeit auf deiner Route.",
+            color = Muted,
+            fontSize = 12.sp
+        )
     }
 }
 

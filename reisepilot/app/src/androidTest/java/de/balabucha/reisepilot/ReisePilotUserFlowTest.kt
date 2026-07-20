@@ -91,14 +91,14 @@ class ReisePilotUserFlowTest {
         clickTab("Entdecken")
         compose.onNodeWithText("Ziel suchen").assertIsDisplayed()
 
-        val photoDirectory = File(compose.activity.cacheDir, "travel_photos_v43")
+        val photoDirectory = File(compose.activity.cacheDir, "travel_photos_v44")
         photoDirectory.deleteRecursively()
 
         findByScrolling("Strand & Promenade Canet")
         clickControl("Strand & Promenade Canet")
         compose.onNodeWithText("Route in Google Maps").assertIsDisplayed()
         compose.waitUntil(45_000) {
-            photoDirectory.listFiles()?.any { it.isFile && it.length() > 4_096L } == true
+            (photoDirectory.listFiles()?.count { it.isFile && it.length() > 4_096L } ?: 0) >= 2
         }
         clickControl("Zurück zur Liste")
         compose.onNodeWithText("Ziel suchen").assertExists()

@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -247,8 +248,8 @@ private fun SuggestionChip(place: TravelPlace, onClick: () -> Unit) {
 private fun PlaceThumbnail(place: TravelPlace, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     var finished by remember(place.region, place.title) { mutableStateOf(false) }
-    val imageUrl by produceState<String?>(initialValue = null, place.imageQuery, place.region.imageFallback) {
-        value = runCatching { WikiImageResolver.resolve(context, place.imageQuery, place.region.imageFallback) }.getOrNull()
+    val imageUrl by produceState<String?>(initialValue = null, place.region, place.title, place.imageQuery) {
+        value = runCatching { WikiImageResolver.resolve(context, place) }.getOrNull()
         finished = true
     }
     Surface(modifier = modifier, shape = RoundedCornerShape(14.dp), color = regionColor(place.region)) {
@@ -322,14 +323,13 @@ private fun PlaceDetailSheet(
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var imageFinished by remember(place.title) { mutableStateOf(false) }
-    val imageUrl by produceState<String?>(
-        initialValue = null,
-        place.imageQuery,
-        place.region.imageFallback
+    val gallery by produceState<List<String>>(
+        initialValue = emptyList(),
+        place.region,
+        place.title,
+        place.imageQuery
     ) {
-        value = runCatching {
-            WikiImageResolver.resolve(context, place.imageQuery, place.region.imageFallback)
-        }.getOrNull()
+        value = runCatching { WikiImageResolver.resolveGallery(context, place, 5) }.getOrDefault(emptyList())
         imageFinished = true
     }
 
@@ -342,30 +342,56 @@ private fun PlaceDetailSheet(
             Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)
         ) {
             Box(
-                Modifier.fillMaxWidth().height(230.dp).background(
+                Modifier.fillMaxWidth().height(250.dp).background(
                     Brush.linearGradient(listOf(regionColor(place.region), Color(0xFFE7EEF2)))
                 )
             ) {
                 DestinationArtwork(place.region, Modifier.fillMaxSize())
-                Column(
-                    Modifier.fillMaxSize().padding(20.dp),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(kindSymbol(place.kind), color = Navy.copy(alpha = .55f), fontSize = 48.sp, fontWeight = FontWeight.Black)
-                    Text(
-                        if (imageFinished) place.region.label else "Bild wird geladen …",
-                        color = Navy.copy(alpha = .65f),
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                imageUrl?.let { url ->
-                    AsyncImage(
-                        model = url,
-                        contentDescription = place.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                if (gallery.isNotEmpty()) {
+                    LazyRow(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        itemsIndexed(gallery, key = { index, url -> "$index:$url" }) { index, url ->
+                            Box(Modifier.width(350.dp).fillMaxHeight()) {
+                                AsyncImage(
+                                    model = url,
+                                    contentDescription = "${place.title} · Foto ${index + 1}",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                Surface(
+                                    color = Navy.copy(alpha = .82f),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)
+                                ) {
+                                    Text(
+                                        "${index + 1} / ${gallery.size}",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
+                                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Column(
+                        Modifier.fillMaxSize().padding(20.dp),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(kindSymbol(place.kind), color = Navy.copy(alpha = .55f), fontSize = 48.sp, fontWeight = FontWeight.Black)
+                        Text(
+                            when {
+                                !imageFinished -> "Passende Fotos werden geladen …"
+                                else -> "Kein eindeutig passendes Foto gefunden"
+                            },
+                            color = Navy.copy(alpha = .65f),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
                 Surface(
                     color = Navy.copy(alpha = .88f),
