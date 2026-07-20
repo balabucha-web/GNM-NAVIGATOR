@@ -4,26 +4,47 @@ set -uo pipefail
 SUMMARY="emulator-summary.txt"
 echo "PHASE emulator launch requested" >> "$SUMMARY"
 
-emulator -avd reisepilot_api34 \
+EMULATOR_BIN="${ANDROID_HOME}/emulator/emulator"
+if [ ! -x "$EMULATOR_BIN" ]; then
+  EMULATOR_BIN=$(command -v emulator || true)
+fi
+if [ -z "$EMULATOR_BIN" ] || [ ! -x "$EMULATOR_BIN" ]; then
+  echo "RESULT emulator binary missing" >> "$SUMMARY"
+  exit 1
+fi
+echo "EMULATOR $EMULATOR_BIN" >> "$SUMMARY"
+
+"$EMULATOR_BIN" -avd reisepilot_api34 \
   -no-window -no-snapshot -noaudio -no-boot-anim \
   -gpu swiftshader_indirect -accel on -camera-back none \
   > emulator-boot.log 2>&1 &
 EMULATOR_PID=$!
 echo "$EMULATOR_PID" > emulator.pid
 
-adb wait-for-device
+if ! timeout 180 adb wait-for-device; then
+  echo "RESULT adb device timeout" >> "$SUMMARY"
+  adb devices -l > emulator-devices.txt 2>&1 || true
+  kill "$EMULATOR_PID" 2>/dev/null || true
+  exit 1
+fi
+
 for _ in $(seq 1 84); do
   BOOTED=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
   if [ "$BOOTED" = "1" ]; then
     break
+  fi
+  if ! kill -0 "$EMULATOR_PID" 2>/dev/null; then
+    echo "RESULT emulator process exited during boot" >> "$SUMMARY"
+    exit 1
   fi
   sleep 5
 done
 
 BOOTED=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
 if [ "$BOOTED" != "1" ]; then
-  echo "RESULT emulator boot timeout" >> "$SUMMARY"
+  echo "RESULT Android boot property timeout" >> "$SUMMARY"
   adb devices -l > emulator-devices.txt 2>&1 || true
+  kill "$EMULATOR_PID" 2>/dev/null || true
   exit 1
 fi
 
@@ -37,7 +58,7 @@ adb logcat -c
 adb emu geo fix 11.4000 53.6400
 
 set +e
-gradle :app:connectedDebugAndroidTest --stacktrace 2>&1 | tee emulator-test.log
+timeout 720 gradle :app:connectedDebugAndroidTest --stacktrace 2>&1 | tee emulator-test.log
 CODE=${PIPESTATUS[0]}
 set -e
 echo "PHASE instrumentation exit=$CODE" >> "$SUMMARY"
