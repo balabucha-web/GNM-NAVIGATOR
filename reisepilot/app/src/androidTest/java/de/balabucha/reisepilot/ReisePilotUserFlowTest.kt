@@ -24,13 +24,24 @@ class ReisePilotUserFlowTest {
     @get:Rule(order = 1)
     val compose = createAndroidComposeRule<MainActivity>()
 
-    private fun clickableText(label: String): SemanticsMatcher =
-        hasText(label) and hasClickAction()
-
-    private fun clickTab(label: String) {
-        compose.onNode(clickableText(label), useUnmergedTree = true).performClick()
+    private fun clickControl(label: String) {
+        val direct = compose.onAllNodes(
+            hasText(label) and hasClickAction(),
+            useUnmergedTree = true
+        )
+        val directNodes = direct.fetchSemanticsNodes(atLeastOneRootRequired = false)
+        if (directNodes.isNotEmpty()) {
+            direct[0].performClick()
+        } else {
+            compose.onNode(
+                hasClickAction() and hasAnyDescendant(hasText(label)),
+                useUnmergedTree = true
+            ).performClick()
+        }
         compose.waitForIdle()
     }
+
+    private fun clickTab(label: String) = clickControl(label)
 
     private fun swipeUp(times: Int) {
         repeat(times) {
@@ -59,12 +70,12 @@ class ReisePilotUserFlowTest {
     @Test
     fun primaryUserJourney_remainsStable() {
         compose.onNodeWithText("ReisePilot").assertIsDisplayed()
-        compose.onNodeWithText("Fahrt starten").performClick()
+        clickControl("Fahrt starten")
         compose.waitUntil(15_000) {
             compose.onAllNodesWithText("Tracking aktiv")
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
         }
-        compose.onNodeWithText("Tracking stoppen").performClick()
+        clickControl("Tracking stoppen")
 
         clickTab("Route")
         compose.onNodeWithText("Live-Karte").assertIsDisplayed()
@@ -80,17 +91,17 @@ class ReisePilotUserFlowTest {
         compose.onNodeWithText("Ziel suchen").assertIsDisplayed()
 
         findByScrolling("Strand & Promenade Canet")
-        compose.onNodeWithText("Strand & Promenade Canet").performClick()
+        clickControl("Strand & Promenade Canet")
         compose.onNodeWithText("Route in Google Maps").assertIsDisplayed()
         Thread.sleep(2_000)
-        compose.onNodeWithText("Zurück zur Liste").performClick()
-        compose.onNode(clickableText("Entdecken"), useUnmergedTree = true).assertExists()
+        clickControl("Zurück zur Liste")
+        compose.onNodeWithText("Ziel suchen").assertExists()
 
         clickTab("Mehr")
         compose.onNodeWithText("Reiseplan").assertIsDisplayed()
         compose.onNodeWithText("Buchungen").assertIsDisplayed()
         findByScrolling("Technische Einstellungen")
-        compose.onNodeWithText("Technische Einstellungen").performClick()
+        clickControl("Technische Einstellungen")
         compose.onNodeWithText("Mapbox-Kartenzugang").assertIsDisplayed()
         compose.activity.onBackPressedDispatcher.onBackPressed()
         compose.waitForIdle()
@@ -109,8 +120,7 @@ class ReisePilotUserFlowTest {
         compose.onNodeWithText("Live-Karte").assertIsDisplayed()
         clickTab("Entdecken")
 
-        compose.onNode(clickableText("Barcelona"), useUnmergedTree = true).performClick()
-        compose.waitForIdle()
+        clickControl("Barcelona")
         repeat(3) {
             swipeUp(10)
             swipeDown(10)
