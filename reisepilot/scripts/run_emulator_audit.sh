@@ -72,33 +72,42 @@ CODE=${PIPESTATUS[0]}
 set -e
 echo "PHASE instrumentation exit=$CODE" >> "$SUMMARY"
 
+APP_APK="app/build/outputs/apk/debug/app-debug.apk"
+TEST_APK="app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
+
 if [ "$CODE" -eq 0 ]; then
-  echo "PHASE responsive packing-list checks" >> "$SUMMARY"
-  for SPEC in "720x1280:320:compact" "1080x2400:420:standard" "1440x3200:560:large"; do
-    IFS=: read -r SIZE DENSITY LABEL <<< "$SPEC"
-    "$ADB_BIN" shell wm size "$SIZE"
-    "$ADB_BIN" shell wm density "$DENSITY"
-    "$ADB_BIN" shell am force-stop de.balabucha.reisepilot || true
-    set +e
-    timeout 180 "$ADB_BIN" shell am instrument -w \
-      -e class de.balabucha.reisepilot.PackingResponsiveLayoutTest \
-      de.balabucha.reisepilot.test/androidx.test.runner.AndroidJUnitRunner \
-      2>&1 | tee "packing-responsive-${LABEL}.log"
-    SIZE_CODE=${PIPESTATUS[0]}
-    set -e
-    "$ADB_BIN" exec-out screencap -p > "packing-responsive-${LABEL}.png" || true
-    if [ "$SIZE_CODE" -ne 0 ] || ! grep -q 'OK (1 test)' "packing-responsive-${LABEL}.log"; then
-      echo "RESULT responsive packing-list $LABEL failed" >> "$SUMMARY"
-      CODE=1
-    else
-      echo "RESULT responsive packing-list $LABEL passed" >> "$SUMMARY"
-    fi
-  done
-  "$ADB_BIN" shell wm size reset || true
-  "$ADB_BIN" shell wm density reset || true
+  echo "PHASE reinstall app and instrumentation for responsive checks" >> "$SUMMARY"
+  if "$ADB_BIN" install -r "$APP_APK" 2>&1 | tee packing-responsive-app-install.log \
+    && "$ADB_BIN" install -r "$TEST_APK" 2>&1 | tee packing-responsive-test-install.log; then
+    echo "PHASE responsive packing-list checks" >> "$SUMMARY"
+    for SPEC in "720x1280:320:compact" "1080x2400:420:standard" "1440x3200:560:large"; do
+      IFS=: read -r SIZE DENSITY LABEL <<< "$SPEC"
+      "$ADB_BIN" shell wm size "$SIZE"
+      "$ADB_BIN" shell wm density "$DENSITY"
+      "$ADB_BIN" shell am force-stop de.balabucha.reisepilot || true
+      set +e
+      timeout 180 "$ADB_BIN" shell am instrument -w \
+        -e class de.balabucha.reisepilot.PackingResponsiveLayoutTest \
+        de.balabucha.reisepilot.test/androidx.test.runner.AndroidJUnitRunner \
+        2>&1 | tee "packing-responsive-${LABEL}.log"
+      SIZE_CODE=${PIPESTATUS[0]}
+      set -e
+      "$ADB_BIN" exec-out screencap -p > "packing-responsive-${LABEL}.png" || true
+      if [ "$SIZE_CODE" -ne 0 ] || ! grep -q 'OK (1 test)' "packing-responsive-${LABEL}.log"; then
+        echo "RESULT responsive packing-list $LABEL failed" >> "$SUMMARY"
+        CODE=1
+      else
+        echo "RESULT responsive packing-list $LABEL passed" >> "$SUMMARY"
+      fi
+    done
+    "$ADB_BIN" shell wm size reset || true
+    "$ADB_BIN" shell wm density reset || true
+  else
+    echo "RESULT responsive packing-list test installation failed" >> "$SUMMARY"
+    CODE=1
+  fi
 fi
 
-APP_APK="app/build/outputs/apk/debug/app-debug.apk"
 "$ADB_BIN" uninstall de.balabucha.reisepilot >/dev/null 2>&1 || true
 "$ADB_BIN" install -r "$APP_APK" | tee emulator-app-install.txt
 "$ADB_BIN" shell pm grant de.balabucha.reisepilot android.permission.ACCESS_FINE_LOCATION || true
