@@ -93,7 +93,7 @@ jobs:
                   assert marker in text, f'{name}: missing {marker}'
           version = Path('app/build.gradle.kts').read_text()
           assert 'versionName = "4.4"' in version
-          assert 'versionCode = 13' in version
+          assert 'versionCode = 14' in version
           print('PASS: ReisePilot 4.4 release guards present')
           PY
       - name: Check Wikimedia image service

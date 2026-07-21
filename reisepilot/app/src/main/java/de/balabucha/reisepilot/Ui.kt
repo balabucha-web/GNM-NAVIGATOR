@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
@@ -98,7 +99,9 @@ fun ReisePilotApp(activity: MainActivity, snapshot: TripSnapshot) {
 @Composable
 fun Page(title: String, subtitle: String, modifier: Modifier, content: LazyListScope.() -> Unit) {
     LazyColumn(
-        modifier.fillMaxSize(),
+        modifier
+            .fillMaxSize()
+            .testTag("page-list:$title"),
         contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {

@@ -25,6 +25,11 @@ class ReisePilotUserFlowTest {
     @get:Rule(order = 1)
     val compose = createAndroidComposeRule<MainActivity>()
 
+    private fun pageList(title: String) = compose.onNodeWithTag(
+        "page-list:$title",
+        useUnmergedTree = true
+    )
+
     private fun clickControl(label: String) {
         val direct = compose.onAllNodes(
             hasText(label) and hasClickAction(),
@@ -46,14 +51,14 @@ class ReisePilotUserFlowTest {
 
     private fun swipeUp(times: Int) {
         repeat(times) {
-            compose.onRoot().performTouchInput { swipeUp() }
+            pageList("Entdecken").performTouchInput { swipeUp() }
             compose.waitForIdle()
         }
     }
 
     private fun swipeDown(times: Int) {
         repeat(times) {
-            compose.onRoot().performTouchInput { swipeDown() }
+            pageList("Entdecken").performTouchInput { swipeDown() }
             compose.waitForIdle()
         }
     }
@@ -68,13 +73,9 @@ class ReisePilotUserFlowTest {
         compose.onNodeWithText(text, substring = true).assertExists()
     }
 
-    private fun findTagByScrolling(tag: String, maxSwipes: Int = 18) {
-        repeat(maxSwipes + 1) {
-            if (compose.onAllNodesWithTag(tag, useUnmergedTree = true)
-                    .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()) return
-            compose.onRoot().performTouchInput { swipeUp() }
-            compose.waitForIdle()
-        }
+    private fun findTagByScrolling(tag: String) {
+        pageList("Entdecken").performScrollToNode(hasTestTag(tag))
+        compose.waitForIdle()
         compose.onNodeWithTag(tag, useUnmergedTree = true).assertExists()
     }
 
