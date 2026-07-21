@@ -228,8 +228,16 @@ object WikiImageResolver {
             TravelRegion.ANDORRA -> "Andorra"
             TravelRegion.PARIS -> "Paris"
         }
+        val detailTerm = when (place.kind) {
+            PlaceKind.HIGHLIGHT -> "architecture view"
+            PlaceKind.FAMILY -> "visitor site"
+            PlaceKind.NATURE -> "landscape"
+            PlaceKind.QUICK -> "street view"
+            PlaceKind.RAIN -> "interior"
+            PlaceKind.SHOPPING -> "exterior"
+        }
         val aliases = curatedAliases[place.title].orEmpty()
-        return (aliases + place.imageQuery + "${place.title} $city")
+        return (aliases + place.imageQuery + "${place.title} $city" + "${place.imageQuery} $detailTerm")
             .map(String::trim)
             .filter(String::isNotBlank)
             .distinct()

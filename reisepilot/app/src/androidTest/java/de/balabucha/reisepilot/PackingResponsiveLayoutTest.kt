@@ -20,9 +20,25 @@ class PackingResponsiveLayoutTest {
             .edit().clear().commit()
     }
 
+    private fun clickControl(label: String) {
+        val direct = compose.onAllNodes(
+            hasText(label) and hasClickAction(),
+            useUnmergedTree = true
+        )
+        if (direct.fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()) {
+            direct[0].performClick()
+        } else {
+            compose.onNode(
+                hasClickAction() and hasAnyDescendant(hasText(label)),
+                useUnmergedTree = true
+            ).performClick()
+        }
+        compose.waitForIdle()
+    }
+
     @Test
     fun packingCoreControlsRemainReachable() {
-        compose.onAllNodes(hasText("Mehr") and hasClickAction(), useUnmergedTree = true)[0].performClick()
+        clickControl("Mehr")
         compose.onNodeWithTag("page-list:Mehr", useUnmergedTree = true)
             .performScrollToNode(hasTestTag("open-packing-list"))
         compose.onNodeWithTag("open-packing-list", useUnmergedTree = true).performClick()

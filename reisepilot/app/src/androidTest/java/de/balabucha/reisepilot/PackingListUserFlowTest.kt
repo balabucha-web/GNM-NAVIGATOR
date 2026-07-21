@@ -80,14 +80,14 @@ class PackingListUserFlowTest {
             .performScrollToNode(hasTestTag("packing-search"))
         compose.onNodeWithTag("packing-search", useUnmergedTree = true)
             .performTextInput("Test-Sonnenhut")
-        compose.onNodeWithText("Test-Sonnenhut").assertIsDisplayed()
+        compose.onNode(hasText("Test-Sonnenhut") and !hasSetTextAction()).assertIsDisplayed()
 
         compose.activityRule.scenario.recreate()
         compose.waitUntil(8_000) {
             compose.onAllNodesWithTag("packing-screen", useUnmergedTree = true)
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
         }
-        compose.onNodeWithText("Test-Sonnenhut").assertExists()
+        compose.onNode(hasText("Test-Sonnenhut") and !hasSetTextAction()).assertExists()
         val restarted = PackingRepository(compose.activity.applicationContext)
         assertEquals(269, restarted.state.items.size)
         assertEquals(1, restarted.state.items.count { it.checked })

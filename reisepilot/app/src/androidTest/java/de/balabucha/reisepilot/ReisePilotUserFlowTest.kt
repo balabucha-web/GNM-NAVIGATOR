@@ -66,16 +66,6 @@ class ReisePilotUserFlowTest {
         }
     }
 
-    private fun findByScrolling(text: String, maxSwipes: Int = 18) {
-        repeat(maxSwipes + 1) {
-            if (compose.onAllNodesWithText(text, substring = true)
-                    .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()) return
-            compose.onRoot().performTouchInput { swipeUp() }
-            compose.waitForIdle()
-        }
-        compose.onNodeWithText(text, substring = true).assertExists()
-    }
-
     private fun findTagByScrolling(tag: String) {
         pageList("Entdecken").performScrollToNode(hasTestTag(tag))
         compose.waitForIdle()
@@ -139,9 +129,8 @@ class ReisePilotUserFlowTest {
         clickTab("Mehr")
         compose.onNodeWithText("Reiseplan").assertIsDisplayed()
         compose.onNodeWithText("Buchungen").assertIsDisplayed()
-        findByScrolling("Technische Einstellungen")
+        pageList("Mehr").performScrollToNode(hasTestTag("technical-settings-button"))
         compose.onNodeWithTag("technical-settings-button", useUnmergedTree = true)
-            .performScrollTo()
             .assertIsDisplayed()
             .performClick()
         compose.waitUntil(5_000) {
