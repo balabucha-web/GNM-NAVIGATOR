@@ -1,4 +1,4 @@
-name: ReisePilot 4.4 Emulator Audit
+name: ReisePilot 4.5 Emulator Audit
 
 on:
   push:
@@ -84,7 +84,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-v4.4-emulator-audit
+          name: ReisePilot-v4.5-emulator-audit
           path: |
             reisepilot/emulator-summary.txt
             reisepilot/emulator-compile.log
@@ -99,6 +99,8 @@ jobs:
             reisepilot/emulator-start.xml
             reisepilot/emulator-start-screen.png
             reisepilot/emulator-after-monkey.png
+            reisepilot/packing-responsive-*.log
+            reisepilot/packing-responsive-*.png
             reisepilot/monkey.log
             reisepilot/emulator-logcat.txt
             reisepilot/app/build/reports/androidTests/connected

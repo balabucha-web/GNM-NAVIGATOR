@@ -2,6 +2,7 @@ package de.balabucha.reisepilot
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -14,15 +15,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+private enum class MoreHubPage { HOME, PACKING, TECHNICAL }
+
 @Composable
 fun MoreHubScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifier) {
-    var technical by rememberSaveable { mutableStateOf(false) }
-    if (technical) {
-        BackHandler { technical = false }
+    var page by rememberSaveable { mutableStateOf(MoreHubPage.HOME) }
+    if (page == MoreHubPage.PACKING) {
+        PackingListScreen(
+            activity = activity,
+            modifier = modifier,
+            onBack = { page = MoreHubPage.HOME }
+        )
+        return
+    }
+
+    if (page == MoreHubPage.TECHNICAL) {
+        BackHandler { page = MoreHubPage.HOME }
         Box(modifier.fillMaxSize()) {
             MoreScreen(activity, snapshot, Modifier.fillMaxSize())
             SmallFloatingActionButton(
-                onClick = { technical = false },
+                onClick = { page = MoreHubPage.HOME },
                 containerColor = Navy,
                 contentColor = androidx.compose.ui.graphics.Color.White,
                 modifier = Modifier.align(Alignment.TopEnd).padding(top = 18.dp, end = 18.dp)
@@ -34,6 +46,48 @@ fun MoreHubScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modi
     Page("Mehr", "Reiseplan, Buchungen und Einstellungen", modifier) {
         item { JourneyOverview(activity, snapshot.stage) }
         item { BookingOverview(activity) }
+        item {
+            AppCard {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.size(48.dp).background(Blue.copy(alpha = .11f), RoundedCornerShape(14.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("✓", color = Blue, fontWeight = FontWeight.Black, fontSize = 25.sp)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Packliste", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            "Abhaken, ergänzen, bearbeiten, sortieren und dauerhaft speichern",
+                            color = Muted,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+                val packing = remember { PackingRepository(activity.applicationContext) }.state
+                val progress = PackingLogic.progress(packing.items)
+                Spacer(Modifier.height(11.dp))
+                LinearProgressIndicator(
+                    progress = { progress.fraction },
+                    modifier = Modifier.fillMaxWidth().height(7.dp),
+                    color = Green,
+                    trackColor = Line
+                )
+                Text(
+                    "${progress.done} von ${progress.total} eingepackt · ${progress.percent} %",
+                    color = Muted,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+                Spacer(Modifier.height(10.dp))
+                Button(
+                    onClick = { page = MoreHubPage.PACKING },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp).testTag("open-packing-list"),
+                    shape = RoundedCornerShape(13.dp)
+                ) { Text("Packliste öffnen") }
+            }
+        }
         item {
             AppCard {
                 Text("System und Fahrzeug", style = MaterialTheme.typography.titleLarge)
@@ -55,7 +109,7 @@ fun MoreHubScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modi
                 )
                 Spacer(Modifier.height(10.dp))
                 Button(
-                    onClick = { technical = true },
+                    onClick = { page = MoreHubPage.TECHNICAL },
                     modifier = Modifier.fillMaxWidth().testTag("technical-settings-button"),
                     shape = RoundedCornerShape(13.dp)
                 ) { Text("Technische Einstellungen") }
@@ -180,4 +234,3 @@ private fun BookingLine(
         }
     }
 }
-
