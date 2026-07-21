@@ -133,11 +133,8 @@ class ReisePilotUserFlowTest {
         compose.onNodeWithText("1 / 3").assertExists()
         WikiImageResolver.debugGalleryOverride = null
         clickControl("Zurück zur Liste")
-        compose.waitUntil(5_000) {
-            compose.onAllNodesWithText("Ziel suchen")
-                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
-        }
-        compose.onNodeWithText("Ziel suchen").assertExists()
+        pageList("Entdecken").assertExists()
+        compose.onNodeWithTag(cardTag, useUnmergedTree = true).assertIsDisplayed()
 
         clickTab("Mehr")
         compose.onNodeWithText("Reiseplan").assertIsDisplayed()
