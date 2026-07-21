@@ -332,7 +332,18 @@ private fun PlaceDetailSheet(
         place.title,
         place.imageQuery
     ) {
-        value = runCatching { WikiImageResolver.resolveGallery(context, place, 5) }.getOrDefault(emptyList())
+        val firstPhoto = runCatching {
+            WikiImageResolver.resolveGallery(context, place, 1)
+        }.getOrDefault(emptyList())
+        if (firstPhoto.isNotEmpty()) {
+            value = firstPhoto
+            imageFinished = true
+        }
+
+        val fullGallery = runCatching {
+            WikiImageResolver.resolveGallery(context, place, 5)
+        }.getOrDefault(firstPhoto)
+        if (fullGallery.isNotEmpty()) value = fullGallery
         imageFinished = true
     }
 
