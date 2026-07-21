@@ -28,6 +28,9 @@ import java.util.concurrent.ConcurrentHashMap
 object WikiImageResolver {
     private data class Candidate(val label: String, val url: String, val score: Int)
 
+    @Volatile
+    internal var debugGalleryOverride: ((TravelPlace, Int) -> List<String>)? = null
+
     private val memory = ConcurrentHashMap<String, List<String>>()
     private val retryAfter = ConcurrentHashMap<String, Long>()
     private val gate = Semaphore(2)
@@ -40,6 +43,11 @@ object WikiImageResolver {
     suspend fun resolveGallery(context: Context, place: TravelPlace, limit: Int = 5): List<String> =
         withContext(Dispatchers.IO) {
             val wanted = limit.coerceIn(1, 5)
+            if (BuildConfig.DEBUG) {
+                debugGalleryOverride?.invoke(place, wanted)?.take(wanted)?.let {
+                    return@withContext it
+                }
+            }
             val key = cacheKey(place)
             val memoryKey = "$key:$wanted"
             memory[memoryKey]

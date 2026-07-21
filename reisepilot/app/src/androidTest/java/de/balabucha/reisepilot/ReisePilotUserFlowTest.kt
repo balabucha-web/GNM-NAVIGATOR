@@ -1,6 +1,9 @@
 package de.balabucha.reisepilot
 
 import android.Manifest
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.net.Uri
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.performTouchInput
@@ -98,8 +101,22 @@ class ReisePilotUserFlowTest {
         compose.onNodeWithText("Ziel suchen").assertIsDisplayed()
 
         val selectedPlace = DestinationCatalog.places.first { it.title == "Collioure" }
-        val photoDirectory = File(compose.activity.cacheDir, "travel_photos_v44")
-        photoDirectory.deleteRecursively()
+        val fixtureDirectory = File(compose.activity.cacheDir, "gallery-test").apply {
+            deleteRecursively()
+            mkdirs()
+        }
+        val fixturePhotos = listOf(Color.BLUE, Color.CYAN, Color.YELLOW).mapIndexed { index, color ->
+            val file = File(fixtureDirectory, "collioure-$index.png")
+            Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888).run {
+                eraseColor(color)
+                file.outputStream().use { compress(Bitmap.CompressFormat.PNG, 100, it) }
+                recycle()
+            }
+            Uri.fromFile(file).toString()
+        }
+        WikiImageResolver.debugGalleryOverride = { place, limit ->
+            if (place.title == selectedPlace.title) fixturePhotos.take(limit) else emptyList()
+        }
 
         val cardTag = "destination-card:${selectedPlace.region.name}:${selectedPlace.title}"
         findTagByScrolling(cardTag)
@@ -108,12 +125,13 @@ class ReisePilotUserFlowTest {
             .performClick()
         compose.waitForIdle()
         compose.onNodeWithText("Route in Google Maps").assertIsDisplayed()
-        compose.waitUntil(75_000) {
-            WikiImageResolver.cachedPhotoCount(compose.activity, selectedPlace) >= 1 &&
-                compose.onAllNodesWithContentDescription("Collioure · Foto 1")
-                    .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithContentDescription("Collioure · Foto 1")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
         }
         compose.onNodeWithContentDescription("Collioure · Foto 1").assertExists()
+        compose.onNodeWithText("1 / 3").assertExists()
+        WikiImageResolver.debugGalleryOverride = null
         clickControl("Zurück zur Liste")
         compose.waitUntil(5_000) {
             compose.onAllNodesWithText("Ziel suchen")
