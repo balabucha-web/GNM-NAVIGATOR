@@ -112,6 +112,10 @@ class ReisePilotUserFlowTest {
             WikiImageResolver.cachedPhotoCount(compose.activity, selectedPlace) >= 2
         }
         clickControl("Zurück zur Liste")
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Ziel suchen")
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
         compose.onNodeWithText("Ziel suchen").assertExists()
 
         clickTab("Mehr")
