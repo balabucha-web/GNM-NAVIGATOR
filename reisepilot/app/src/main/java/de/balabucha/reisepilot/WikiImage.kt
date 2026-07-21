@@ -36,9 +36,6 @@ object WikiImageResolver {
     @Volatile
     internal var debugGalleryOverride: ((TravelPlace, Int) -> List<String>)? = null
 
-    @Volatile
-    internal var debugGalleryOverride: ((TravelPlace, Int) -> List<String>)? = null
-
     private val memory = ConcurrentHashMap<String, List<String>>()
     private val retryAfter = ConcurrentHashMap<String, Long>()
     private val gate = Semaphore(2)
