@@ -141,7 +141,8 @@ class ReisePilotUserFlowTest {
         compose.onNodeWithText("Mapbox-Kartenzugang").assertIsDisplayed()
         compose.activity.onBackPressedDispatcher.onBackPressed()
         compose.waitForIdle()
-        compose.onNodeWithText("System und Fahrzeug").assertExists()
+        pageList("Mehr").performScrollToNode(hasText("System und Fahrzeug"))
+        compose.onNodeWithText("System und Fahrzeug").assertIsDisplayed()
     }
 
     @Test

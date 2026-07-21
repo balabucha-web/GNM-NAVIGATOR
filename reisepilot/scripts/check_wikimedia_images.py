@@ -29,6 +29,10 @@ STOP_WORDS = {
 }
 
 
+class WikimediaRateLimited(RuntimeError):
+    """The service answered, but deliberately refused this audit request."""
+
+
 def request_json(base: str, params: dict[str, str]) -> dict:
     url = base + "?" + urllib.parse.urlencode(params)
     request = urllib.request.Request(
@@ -44,9 +48,12 @@ def request_json(base: str, params: dict[str, str]) -> dict:
             with urllib.request.urlopen(request, timeout=20) as response:
                 return json.load(response)
         except urllib.error.HTTPError as exc:
-            if exc.code != 429 or attempt == 3:
+            if exc.code != 429:
                 raise
-            time.sleep(2 ** (attempt + 1))
+            if attempt == 3:
+                raise WikimediaRateLimited("HTTP 429 after four attempts") from exc
+            retry_after = int(exc.headers.get("Retry-After", "0") or 0)
+            time.sleep(max(retry_after, 2 ** (attempt + 1)))
     raise RuntimeError("unreachable")
 
 
@@ -182,6 +189,8 @@ def find_images(query: str, required: int) -> list[str]:
 
 def main() -> int:
     failures: list[str] = []
+    throttled: list[str] = []
+    passed = 0
     for query, required in CHECKS:
         results: list[str] = []
         for attempt in range(2):
@@ -189,18 +198,32 @@ def main() -> int:
                 results = find_images(query, required)
                 if len(results) >= required:
                     break
+            except WikimediaRateLimited as exc:
+                print(f"INCONCLUSIVE {query}: {exc}")
+                throttled.append(query)
+                break
             except Exception as exc:
                 if attempt == 1:
                     print(f"ERROR {query}: {exc}")
                 time.sleep(1)
         if len(results) >= required:
             print(f"PASS {query}: {len(results)} exact usable images")
-        else:
+            passed += 1
+        elif query not in throttled:
             failures.append(f"{query} ({len(results)}/{required})")
         time.sleep(0.7)
     if failures:
         print("Incomplete exact Wikimedia galleries:", ", ".join(failures))
         return 1
+    minimum_live_evidence = (len(CHECKS) + 1) // 2
+    if passed < minimum_live_evidence:
+        print(f"Insufficient live evidence: only {passed}/{len(CHECKS)} checks completed")
+        return 1
+    if throttled:
+        print(
+            "Wikimedia throttled individual checks; remaining live galleries passed:",
+            ", ".join(throttled),
+        )
     return 0
 
 
