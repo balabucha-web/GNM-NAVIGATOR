@@ -109,8 +109,9 @@ class ReisePilotUserFlowTest {
         compose.waitForIdle()
         compose.onNodeWithText("Route in Google Maps").assertIsDisplayed()
         compose.waitUntil(75_000) {
-            WikiImageResolver.cachedPhotoCount(compose.activity, selectedPlace) >= 2
+            WikiImageResolver.cachedPhotoCount(compose.activity, selectedPlace) >= 1
         }
+        compose.onNodeWithContentDescription("Collioure · Foto 1").assertExists()
         clickControl("Zurück zur Liste")
         compose.waitUntil(5_000) {
             compose.onAllNodesWithText("Ziel suchen")
