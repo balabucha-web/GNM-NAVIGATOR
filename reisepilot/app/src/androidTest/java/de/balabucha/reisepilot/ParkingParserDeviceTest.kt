@@ -1,9 +1,12 @@
 package de.balabucha.reisepilot
 
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -39,5 +42,32 @@ class ParkingParserDeviceTest {
         assertTrue(parsed.any { it.name == "Parking du Douy" && it.fee == ParkingFee.PAID })
         assertTrue(parsed.any { it.capacity == 230 && it.supervised == true })
         assertFalse(parsed.any { it.name == "Privat" || it.name == "Straßenrand" })
+    }
+
+    @Test
+    fun overloadedOverpassPayload_isRejectedSoAnotherEndpointCanRun() {
+        val place = DestinationCatalog.places.first { it.title == "Collioure" }
+        assertThrows(IllegalStateException::class.java) {
+            ParkingLogic.parseOverpass(
+                """{"remark":"runtime error: Query timed out in dispatcher","elements":[]}""",
+                place
+            )
+        }
+        assertEquals(
+            listOf("overpass-api.de", "maps.mail.ru", "overpass.private.coffee"),
+            ParkingResolver.overpassEndpoints().map { java.net.URL(it).host }
+        )
+    }
+
+    @Test
+    fun bundledParkingFallback_coversEveryDestination() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        assertEquals(93, OfflineParkingCatalog.coveredDestinationCount(context))
+    }
+
+    @Test
+    fun bundledDestinationPhotos_coverEveryDestination() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        assertTrue(DestinationOfflinePhotoCatalog.hasEveryDestination(context))
     }
 }

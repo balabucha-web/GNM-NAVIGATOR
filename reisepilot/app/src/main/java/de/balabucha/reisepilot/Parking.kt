@@ -197,7 +197,18 @@ object ParkingCatalog {
 
 object ParkingLogic {
     fun parseOverpass(raw: String, place: TravelPlace): List<ParkingSpot> {
-        val elements = JSONObject(raw).optJSONArray("elements") ?: JSONArray()
+        val root = JSONObject(raw)
+        val remark = root.optString("remark").trim()
+        if (remark.isNotBlank() && (
+                remark.contains("timed out", ignoreCase = true) ||
+                    remark.contains("runtime error", ignoreCase = true) ||
+                    remark.contains("dispatcher", ignoreCase = true)
+            )
+        ) {
+            error("OpenStreetMap-Abfrage überlastet")
+        }
+        val elements = root.optJSONArray("elements")
+            ?: error("OpenStreetMap-Antwort enthält keine Parkplatzdaten")
         return buildList {
             for (index in 0 until elements.length()) {
                 val element = elements.optJSONObject(index) ?: continue
@@ -325,7 +336,7 @@ object ParkingResolver {
                 val cached = readCache(context.applicationContext, place)
                 val now = System.currentTimeMillis()
                 if (!forceRefresh && cached != null && now - cached.updatedAt <= CACHE_MAX_AGE_MS) {
-                    return@withLock combine(place, cached.copy(fromCache = true))
+                    return@withLock combine(context.applicationContext, place, cached.copy(fromCache = true))
                 }
 
                 val fetched = runCatching { fetch(place) }
@@ -333,11 +344,12 @@ object ParkingResolver {
                     onSuccess = { spots ->
                         val result = ParkingSearchResult(spots, now)
                         writeCache(context.applicationContext, place, result)
-                        combine(place, result)
+                        combine(context.applicationContext, place, result)
                     },
                     onFailure = { failure ->
                         if (cached != null) {
                             combine(
+                                context.applicationContext,
                                 place,
                                 cached.copy(
                                     fromCache = true,
@@ -347,6 +359,7 @@ object ParkingResolver {
                             )
                         } else {
                             combine(
+                                context.applicationContext,
                                 place,
                                 ParkingSearchResult(
                                     spots = emptyList(),
@@ -360,27 +373,46 @@ object ParkingResolver {
             }
         }
 
-    private fun combine(place: TravelPlace, live: ParkingSearchResult): ParkingSearchResult = live.copy(
-        spots = ParkingLogic.rank(place, ParkingCatalog.recommendations(place) + live.spots)
+    private fun combine(
+        context: Context,
+        place: TravelPlace,
+        live: ParkingSearchResult
+    ): ParkingSearchResult = live.copy(
+        spots = ParkingLogic.rank(
+            place,
+            ParkingCatalog.recommendations(place) + OfflineParkingCatalog.spots(context, place) + live.spots
+        )
     )
 
     private fun fetch(place: TravelPlace): List<ParkingSpot> {
         val radius = ParkingLogic.searchRadiusM(place)
-        val query = "[out:json][timeout:16];" +
-            "nwr(around:$radius,${place.point.lat},${place.point.lon})[\"amenity\"=\"parking\"];" +
-            "out center tags 80;"
+        // Relations are intentionally omitted here. Nodes and ways contain the
+        // useful public car parks while producing a substantially cheaper query.
+        val query = "[out:json][timeout:10][maxsize:8388608];(" +
+            "node(around:$radius,${place.point.lat},${place.point.lon})[\"amenity\"=\"parking\"];" +
+            "way(around:$radius,${place.point.lat},${place.point.lon})[\"amenity\"=\"parking\"];" +
+            ");out center tags 60;"
         val failures = mutableListOf<String>()
-        val endpoints = listOf(
-            "https://overpass-api.de/api/interpreter",
-            "https://overpass.kumi.systems/api/interpreter"
-        )
-        endpoints.forEach { endpoint ->
+        overpassEndpoints().forEach { endpoint ->
             runCatching { request(endpoint, query) }
-                .onSuccess { return ParkingLogic.parseOverpass(it, place) }
-                .onFailure { failures += it.message.orEmpty() }
+                .mapCatching { ParkingLogic.parseOverpass(it, place) }
+                .onSuccess { return it }
+                .onFailure { failures += "${URL(endpoint).host}: ${it.message.orEmpty()}" }
         }
-        error(failures.firstOrNull { it.isNotBlank() } ?: "OpenStreetMap-Parkdaten nicht erreichbar")
+        error(
+            "OSM-Liveabfrage vorübergehend gestört" +
+                failures.firstOrNull()?.takeIf(String::isNotBlank)?.let { " · $it" }.orEmpty()
+        )
     }
+
+    internal fun overpassEndpoints(): List<String> = listOf(
+        // Current public global instances from the OpenStreetMap wiki.
+        "https://overpass-api.de/api/interpreter",
+        "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+        "https://overpass.private.coffee/api/interpreter"
+    )
+
+    internal fun liveProbe(place: TravelPlace): Int = fetch(place).size
 
     private fun request(endpoint: String, query: String): String {
         val body = "data=" + URLEncoder.encode(query, "UTF-8")
@@ -388,17 +420,18 @@ object ParkingResolver {
         return try {
             connection.requestMethod = "POST"
             connection.doOutput = true
-            connection.connectTimeout = 7_000
-            connection.readTimeout = 11_000
+            connection.connectTimeout = 6_000
+            connection.readTimeout = 10_000
             connection.instanceFollowRedirects = true
             connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
             connection.setRequestProperty("Accept", "application/json")
-            connection.setRequestProperty("User-Agent", "ReisePilot/4.7 Android family travel app")
+            connection.setRequestProperty("User-Agent", "ReisePilot/4.8 Android family travel app")
             connection.outputStream.bufferedWriter(Charsets.UTF_8).use { it.write(body) }
             val code = connection.responseCode
             val stream = if (code in 200..299) connection.inputStream else connection.errorStream
             val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-            if (code !in 200..299) error("OpenStreetMap HTTP $code")
+            if (code !in 200..299) error("HTTP $code")
+            if (!response.trimStart().startsWith("{")) error("ungültige Serverantwort")
             response
         } finally {
             connection.disconnect()

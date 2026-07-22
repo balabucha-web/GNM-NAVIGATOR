@@ -313,6 +313,7 @@ private fun JourneyDashboardCard(
     onChosen: (Stage) -> Unit,
     onStart: () -> Unit
 ) {
+    var confirmReset by rememberSaveable { mutableStateOf(false) }
     val origin = TripConfig.origin(chosen)
     val destination = TripConfig.destination(chosen)
     val isCurrent = snapshot.active && snapshot.stage == chosen
@@ -409,6 +410,43 @@ private fun JourneyDashboardCard(
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Tracking stoppen", color = Red) }
         }
+        if (
+            snapshot.active || snapshot.distanceTravelledKm > 0.01 ||
+            snapshot.driveMinutes > 0 || snapshot.remainingKm != null
+        ) {
+            OutlinedButton(
+                onClick = { confirmReset = true },
+                modifier = Modifier.fillMaxWidth().testTag("reset-trip"),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Red),
+                shape = RoundedCornerShape(13.dp)
+            ) { Text("Fahrt vollständig zurücksetzen") }
+        }
+    }
+
+    if (confirmReset) {
+        AlertDialog(
+            onDismissRequest = { confirmReset = false },
+            title = { Text("Testfahrt zurücksetzen?") },
+            text = {
+                Text(
+                    "Die erfasste Strecke, Fahrzeit, Route und Tankberechnung dieser Fahrt werden gelöscht. " +
+                        "Packliste, Ziele, Einstellungen und gemerkte Parkplätze bleiben erhalten."
+                )
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmReset = false }) { Text("Abbrechen") }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        confirmReset = false
+                        activity.serviceAction(TripTrackingService.ACTION_RESET)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Red),
+                    modifier = Modifier.testTag("confirm-reset-trip")
+                ) { Text("Ja, auf 0 setzen") }
+            }
+        )
     }
 }
 

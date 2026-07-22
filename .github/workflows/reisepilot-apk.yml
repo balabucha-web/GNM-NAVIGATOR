@@ -1,4 +1,4 @@
-name: Build ReisePilot 4.7 APK
+name: Build ReisePilot 4.8 APK
 
 on:
   push:
@@ -80,13 +80,16 @@ jobs:
               'DiscoverData.kt': ['distanceKm <= region.radiusKm'],
               'DiscoverScreen.kt': ['destinationCardTag(place)', 'testTag'],
               'FuelPriceClient.kt': ['CountryResolver', 'Fahrumweg geprüft', 'MotorwayFilter'],
-              'TripTrackingService.kt': ['sessionId != requestSession', 'val newlyCrossed = crossed.filter'],
+              'TripTrackingService.kt': ['sessionId != requestSession', 'val newlyCrossed = crossed.filter', 'ACTION_RESET', 'private fun resetTrip()'],
               'NativeTripMap.kt': ['tiles.openfreemap.org/styles/liberty', 'fun dispose()', '€/l'],
-              'LiveScreen.kt': ['Geschätzter Tankinhalt', 'Frankreich-Verkehr live', 'Deutschland-Verkehr live', 'Ankunftszeit', 'LinearProgressIndicator', 'vacation-countdown'],
+              'LiveScreen.kt': ['Geschätzter Tankinhalt', 'Frankreich-Verkehr live', 'Deutschland-Verkehr live', 'Ankunftszeit', 'LinearProgressIndicator', 'vacation-countdown', 'Fahrt vollständig zurücksetzen'],
               'DepartureCountdown.kt': ['VACATION_DEPARTURE', 'Europe/Berlin', 'departureCountdown'],
-              'WikiImage.kt': ['travel_photos_v46', 'resolveGallery', 'wikidataCandidates', 'commonsGeoCandidates', 'commonsCategoryCandidates'],
+              'WikiImage.kt': ['travel_photos_v48', 'resolveGallery', 'wikidataCandidates', 'commonsGeoCandidates', 'commonsCategoryCandidates'],
               'DestinationMedia.kt': ['DestinationMediaCatalog', 'Temple Expiatori de la Sagrada Família'],
-              'Parking.kt': ['ParkingResolver', 'ParkingSelectionStore', 'BSM Moll de la Fusta', 'overpass-api.de'],
+              'DestinationOfflinePhoto.kt': ['DestinationOfflinePhotoCatalog', 'destination_photos/index.json'],
+              'Parking.kt': ['ParkingResolver', 'ParkingSelectionStore', 'BSM Moll de la Fusta', 'overpass-api.de', 'maps.mail.ru', 'overpass.private.coffee'],
+              'OfflineParking.kt': ['OfflineParkingCatalog', 'destination_parkings.json'],
+              'LiveDataDiagnostics.kt': ['LiveDataDiagnostics', 'OSM-Parkplätze', 'Frankreich-Diesel', 'OpenFreeMap-Kartenstil'],
               'PackingModels.kt': ['packing-v1-cat-16-luggage', 'DefaultPackingList'],
               'PackingRepository.kt': ['INITIALIZED_KEY', 'restoreMissingDefaults', 'resetChecks'],
               'PackingScreen.kt': ['Neuer Eintrag', 'Kategorien verwalten', 'Rückgängig'],
@@ -98,19 +101,42 @@ jobs:
               for marker in markers:
                   assert marker in text, f'{name}: missing {marker}'
           version = Path('app/build.gradle.kts').read_text()
-          assert 'versionName = "4.7"' in version
-          assert 'versionCode = 19' in version
-          print('PASS: ReisePilot 4.7 release guards present')
+          assert 'versionName = "4.8"' in version
+          assert 'versionCode = 20' in version
+          print('PASS: ReisePilot 4.8 release guards present')
           PY
+      - name: Check all live data sources
+        run: python3 scripts/check_live_data.py
       - name: Check Wikimedia image service
         run: python3 scripts/check_wikimedia_images.py
+      - name: Verify offline destination photos and parking fallbacks
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          assets = Path('app/src/main/assets')
+          photos = json.loads((assets / 'destination_photos/index.json').read_text())
+          entries = photos['places']
+          assert len(entries) == 93, f'offline photos: {len(entries)}/93'
+          actual = sum(bool(item['photo']) for item in entries.values())
+          assert actual >= 75, f'only {actual}/93 exact offline photos'
+          for region in ('canet', 'barcelona', 'andorra', 'paris'):
+              sprite = assets / f'destination_photos/{region}.webp'
+              assert sprite.stat().st_size > 50_000, f'{sprite} is incomplete'
+          parking = json.loads((assets / 'destination_parkings.json').read_text())['places']
+          covered = sum(bool(items) for items in parking.values())
+          assert len(parking) == 93 and covered == 93, f'offline parking coverage {covered}/93'
+          print(f'PASS: 93 offline previews ({actual} photos) and {covered}/93 parking fallbacks')
+          PY
       - name: Guard destination image loading
         run: |
           python3 - <<'PY'
           from pathlib import Path
           text = Path('app/src/main/java/de/balabucha/reisepilot/DiscoverScreen.kt').read_text()
-          assert text.count('AsyncImage(') >= 2, 'List thumbnail and detail gallery image loaders are required'
-          assert 'itemsIndexed(gallery' in text and '1} / ${gallery.size}' in text
+          assert 'DestinationOfflinePhoto(place' in text, 'Offline list and detail previews are required'
+          assert text.count('AsyncImage(') >= 1, 'Detail gallery image loader is required'
+          assert 'itemsIndexed(gallery' in text and 'val totalImages = gallery.size' in text
+          assert '"$displayIndex / $totalImages"' in text
           resolver = Path('app/src/main/java/de/balabucha/reisepilot/WikiImage.kt').read_text()
           assert 'resolveGallery' in resolver and 'commonsGeoCandidates' in resolver
           assert 'imageFallback' not in resolver, 'Generic region photos must not replace exact POI photos'
@@ -125,21 +151,21 @@ jobs:
           code=${PIPESTATUS[0]}
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           if [ "$code" -eq 0 ]; then
-            sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/ReisePilot-Live-v4.7.sha256
+            sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/ReisePilot-Live-v4.8.sha256
           fi
           exit 0
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-v4.7-build-log
+          name: ReisePilot-v4.8-build-log
           path: reisepilot/build.log
           if-no-files-found: warn
       - name: Upload test and lint reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-v4.7-reports
+          name: ReisePilot-v4.8-reports
           path: |
             reisepilot/app/build/reports/tests/testDebugUnitTest
             reisepilot/app/build/reports/lint-results-debug.html
@@ -148,10 +174,10 @@ jobs:
         if: steps.build.outputs.exit_code == '0'
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-Live-v4.7-APK
+          name: ReisePilot-Live-v4.8-APK
           path: |
             reisepilot/app/build/outputs/apk/debug/app-debug.apk
-            reisepilot/app/build/outputs/apk/debug/ReisePilot-Live-v4.7.sha256
+            reisepilot/app/build/outputs/apk/debug/ReisePilot-Live-v4.8.sha256
           if-no-files-found: error
       - name: Fail when validation failed
         if: steps.build.outputs.exit_code != '0'

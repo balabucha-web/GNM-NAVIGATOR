@@ -104,6 +104,12 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    fun openWeb(url: String) {
+        if (url.startsWith("https://")) {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        }
+    }
+
     fun isInstalled(pkg: String): Boolean = try {
         packageManager.getPackageInfo(pkg, 0)
         true

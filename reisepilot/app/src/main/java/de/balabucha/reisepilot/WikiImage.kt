@@ -116,6 +116,11 @@ object WikiImageResolver {
         return existingFiles(context.applicationContext, key, 8).size
     }
 
+    internal suspend fun liveCandidateCount(place: TravelPlace): Int = withContext(Dispatchers.IO) {
+        val primary = exactQueries(place).first()
+        rankCandidates(commonsSearchCandidates(primary, place, 13), place).size
+    }
+
     /**
      * List thumbnails start with a lightweight exact search. Detail galleries
      * additionally resolve exact Commons categories. Files from such a category
@@ -147,12 +152,6 @@ object WikiImageResolver {
             }, place)
         }
 
-        val exactIdentity = runCatching {
-            wikidataCandidates(place, includeCategory = true)
-        }.getOrDefault(emptyList())
-        val rankedIdentity = rankCandidates(exactIdentity, place)
-        if (rankedIdentity.size >= wanted) return rankedIdentity
-
         val initial = supervisorScope {
             listOf(
                 async(Dispatchers.IO) {
@@ -170,7 +169,16 @@ object WikiImageResolver {
             ).awaitAll().flatten()
         }
 
-        var ranked = rankCandidates(exactIdentity + initial, place)
+        var ranked = rankCandidates(initial, place)
+        if (ranked.size >= wanted) return ranked
+
+        // Wikidata is a high-confidence enrichment, not a gate in front of the
+        // gallery. Commons can therefore populate additional photos even when
+        // the identity API is temporarily slow.
+        val exactIdentity = runCatching {
+            wikidataCandidates(place, includeCategory = true)
+        }.getOrDefault(emptyList())
+        ranked = rankCandidates(exactIdentity + initial, place)
         if (ranked.size < wanted && queries.size > 1) {
             val secondary = supervisorScope {
                 queries.drop(1).take(3).flatMap { query ->
@@ -226,14 +234,16 @@ object WikiImageResolver {
         val normalized = normalize(label)
         val blockedWords = setOf(
             "logo", "flag", "blason", "escutcheon", "diagram", "pictogram", "poster",
-            "advertisement", "ticket", "brochure"
+            "advertisement", "ticket", "brochure", "kaart", "bikini", "sunbathing",
+            "dentalklinik", "dental", "clinic"
         )
         val words = normalized.replace(Regex("[^a-z0-9]+"), " ").split(' ').filter(String::isNotBlank)
         if (words.any(blockedWords::contains)) return true
         return listOf(
             " logo", "logo ", " flag", "flag ", " coat of arms", "blason", "escut",
             " map of", "location map", "plan de", "site plan", "diagram", "pictogram",
-            "poster", "advertisement", "ticket", "brochure", "metrostation", "railway station"
+            "poster", "advertisement", "ticket", "brochure", "metrostation", "railway station",
+            "young woman", "sunbathing"
         ).any(normalized::contains)
     }
 
@@ -241,6 +251,7 @@ object WikiImageResolver {
         val requiredLocation = when (place.title) {
             "Intermarché Canet", "Lidl Canet" -> listOf("canet", "roussillon")
             "Carrefour Claira / Salanca" -> listOf("claira", "salanca")
+            "La Roca Village" -> listOf("village", "outlet")
             else -> return true
         }
         val normalizedLabel = normalize(label)
@@ -619,7 +630,7 @@ object WikiImageResolver {
     internal fun exactQueriesForTest(place: TravelPlace): List<String> = exactQueries(place)
 
     private fun cacheKey(place: TravelPlace): String =
-        sha256("v46-wikidata|${place.region.name}|${place.title}|${DestinationMediaCatalog.identities(place)}")
+        sha256("v48-offline-seed|${place.region.name}|${place.title}|${DestinationMediaCatalog.identities(place)}")
 
     private fun existingFiles(context: Context, key: String, limit: Int): List<String> =
         (0 until limit).mapNotNull { index ->
@@ -628,17 +639,17 @@ object WikiImageResolver {
         }
 
     private fun imageFile(context: Context, key: String, index: Int): File {
-        val directory = File(context.cacheDir, "travel_photos_v46").apply { mkdirs() }
+        val directory = File(context.cacheDir, "travel_photos_v48").apply { mkdirs() }
         return File(directory, "$key-$index.image")
     }
 
     private fun sourceUrls(context: Context, key: String): Set<String> {
-        val prefs = context.getSharedPreferences("travel_images_v46", Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences("travel_images_v48", Context.MODE_PRIVATE)
         return prefs.getString("sources_$key", "").orEmpty().lineSequence().filter(String::isNotBlank).toSet()
     }
 
     private fun saveSourceUrls(context: Context, key: String, sources: Set<String>) {
-        context.getSharedPreferences("travel_images_v46", Context.MODE_PRIVATE)
+        context.getSharedPreferences("travel_images_v48", Context.MODE_PRIVATE)
             .edit().putString("sources_$key", sources.joinToString("\n")).apply()
     }
 
@@ -654,7 +665,7 @@ object WikiImageResolver {
             connection.instanceFollowRedirects = true
             connection.setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
             connection.setRequestProperty("Accept-Language", "de,en;q=0.8")
-            connection.setRequestProperty("User-Agent", "ReisePilot/4.7 Android family travel app")
+            connection.setRequestProperty("User-Agent", "ReisePilot/4.8 Android family travel app")
             val code = connection.responseCode
             val contentType = connection.contentType.orEmpty().lowercase(Locale.ROOT)
             if (code !in 200..299 || !contentType.startsWith("image/")) return null
@@ -702,7 +713,7 @@ object WikiImageResolver {
                 connection.instanceFollowRedirects = true
                 connection.setRequestProperty("Accept", "application/json")
                 connection.setRequestProperty("Accept-Language", "de,en;q=0.8")
-                connection.setRequestProperty("User-Agent", "ReisePilot/4.7 Android family travel app")
+                connection.setRequestProperty("User-Agent", "ReisePilot/4.8 Android family travel app")
                 val code = connection.responseCode
                 lastCode = code
                 val stream = if (code in 200..299) connection.inputStream else connection.errorStream

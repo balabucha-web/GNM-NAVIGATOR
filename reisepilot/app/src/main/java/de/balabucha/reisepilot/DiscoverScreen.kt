@@ -246,22 +246,9 @@ private fun SuggestionChip(place: TravelPlace, onClick: () -> Unit) {
 
 @Composable
 private fun PlaceThumbnail(place: TravelPlace, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    var finished by remember(place.region, place.title) { mutableStateOf(false) }
-    val imageUrl by produceState<String?>(initialValue = null, place.region, place.title, place.imageQuery) {
-        value = runCatching { WikiImageResolver.resolve(context, place) }.getOrNull()
-        finished = true
-    }
     Surface(modifier = modifier, shape = RoundedCornerShape(14.dp), color = regionColor(place.region)) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            DestinationArtwork(place.region, Modifier.fillMaxSize())
-            Text(kindSymbol(place.kind), color = Navy.copy(alpha = .62f), fontWeight = FontWeight.Black, fontSize = 20.sp)
-            imageUrl?.let { url ->
-                AsyncImage(model = url, contentDescription = place.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            }
-            if (!finished) {
-                CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp, color = Navy.copy(alpha = .55f))
-            }
+            DestinationOfflinePhoto(place, Modifier.fillMaxSize())
         }
     }
 }
@@ -326,6 +313,9 @@ private fun PlaceDetailSheet(
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var imageFinished by remember(place.title) { mutableStateOf(false) }
+    val offlineEntry = remember(place.region, place.title) {
+        DestinationOfflinePhotoCatalog.entry(context, place)
+    }
     val gallery by produceState<List<String>>(
         initialValue = emptyList(),
         place.region,
@@ -361,16 +351,38 @@ private fun PlaceDetailSheet(
                 )
             ) {
                 DestinationArtwork(place.region, Modifier.fillMaxSize())
-                if (gallery.isNotEmpty()) {
+                if (offlineEntry != null || gallery.isNotEmpty()) {
+                    val totalImages = gallery.size + if (offlineEntry != null) 1 else 0
                     LazyRow(
                         modifier = Modifier.fillMaxSize(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
+                        if (offlineEntry != null) {
+                            item(key = "offline:${place.region.name}:${place.title}") {
+                                Box(Modifier.width(350.dp).fillMaxHeight()) {
+                                    DestinationOfflinePhoto(place, Modifier.fillMaxSize())
+                                    Surface(
+                                        color = Navy.copy(alpha = .82f),
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)
+                                    ) {
+                                        Text(
+                                            "1 / $totalImages",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp,
+                                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
                         itemsIndexed(gallery, key = { index, url -> "$index:$url" }) { index, url ->
+                            val displayIndex = index + if (offlineEntry != null) 2 else 1
                             Box(Modifier.width(350.dp).fillMaxHeight()) {
                                 AsyncImage(
                                     model = url,
-                                    contentDescription = "${place.title} · Foto ${index + 1}",
+                                    contentDescription = "${place.title} · Foto $displayIndex",
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()
                                 )
@@ -380,7 +392,7 @@ private fun PlaceDetailSheet(
                                     modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)
                                 ) {
                                     Text(
-                                        "${index + 1} / ${gallery.size}",
+                                        "$displayIndex / $totalImages",
                                         color = Color.White,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 12.sp,
@@ -424,6 +436,25 @@ private fun PlaceDetailSheet(
 
             Column(Modifier.padding(18.dp)) {
                 Text(place.title, style = MaterialTheme.typography.headlineMedium)
+                if (offlineEntry?.isPhoto == true && offlineEntry.source.isNotBlank()) {
+                    TextButton(
+                        onClick = { activity.openWeb(offlineEntry.source) },
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.heightIn(min = 30.dp)
+                    ) {
+                        Text(
+                            buildString {
+                                append("Offline-Foto")
+                                offlineEntry.author.takeIf(String::isNotBlank)?.let {
+                                    append(": ").append(it.take(70))
+                                }
+                                append(" · ").append(offlineEntry.licence.ifBlank { "Wikimedia Commons" })
+                                append(" · Quelle")
+                            },
+                            fontSize = 11.sp
+                        )
+                    }
+                }
                 Spacer(Modifier.height(7.dp))
                 Text(place.description, color = Navy, lineHeight = 21.sp)
                 Spacer(Modifier.height(12.dp))
@@ -467,9 +498,19 @@ private fun ParkingSection(activity: MainActivity, place: TravelPlace) {
     var selectedId by remember(place.region, place.title) {
         mutableStateOf(ParkingSelectionStore.selectedFor(context, place)?.spot?.id)
     }
-    val curated = remember(place.region, place.title) { ParkingCatalog.recommendations(place) }
+    val initialParkings = remember(place.region, place.title) {
+        ParkingLogic.rank(
+            place,
+            ParkingCatalog.recommendations(place) + OfflineParkingCatalog.spots(context, place)
+        )
+    }
     val result by produceState(
-        initialValue = ParkingSearchResult(curated, 0L),
+        initialValue = ParkingSearchResult(
+            initialParkings,
+            0L,
+            fromCache = initialParkings.isNotEmpty(),
+            message = if (initialParkings.isNotEmpty()) "Gespeicherter OSM-Grundbestand · Live-Abgleich läuft" else ""
+        ),
         place.region,
         place.title,
         refreshKey
@@ -478,7 +519,13 @@ private fun ParkingSection(activity: MainActivity, place: TravelPlace) {
         value = runCatching {
             ParkingResolver.nearby(context, place, forceRefresh = refreshKey > 0)
         }.getOrElse {
-            ParkingSearchResult(curated, System.currentTimeMillis(), message = "Parkdaten konnten nicht geladen werden")
+            ParkingSearchResult(
+                initialParkings,
+                System.currentTimeMillis(),
+                fromCache = initialParkings.isNotEmpty(),
+                stale = true,
+                message = "Live-Parkdaten nicht erreichbar · gespeicherter OSM-Stand bleibt nutzbar"
+            )
         }
         loading = false
     }
@@ -548,12 +595,17 @@ private fun ParkingSection(activity: MainActivity, place: TravelPlace) {
             shape = RoundedCornerShape(13.dp)
         ) { Text("Weitere Parkplätze in Google Maps") }
         Text(
-            "Parkdaten: OpenStreetMap · Preise, freie Plätze, Höhe und Öffnung am Besuchstag prüfen.",
+            "Parkdaten: © OpenStreetMap-Mitwirkende · Preise, freie Plätze, Höhe und Öffnung am Besuchstag prüfen.",
             color = Muted,
             fontSize = 11.sp,
             lineHeight = 15.sp,
             modifier = Modifier.padding(top = 7.dp)
         )
+        TextButton(
+            onClick = { activity.openWeb("https://www.openstreetmap.org/copyright") },
+            contentPadding = PaddingValues(0.dp),
+            modifier = Modifier.heightIn(min = 28.dp)
+        ) { Text("OpenStreetMap-Quellenhinweis", fontSize = 11.sp) }
     }
 }
 

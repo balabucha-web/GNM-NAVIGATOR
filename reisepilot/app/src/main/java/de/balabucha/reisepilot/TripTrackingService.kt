@@ -26,6 +26,7 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
         const val ACTION_START_SUN = "START_SUN"
         const val ACTION_PAUSE = "PAUSE"
         const val ACTION_STOP = "STOP"
+        const val ACTION_RESET = "RESET"
         const val ACTION_BREAK_DONE = "BREAK_DONE"
         const val ACTION_REFUEL_FULL = "REFUEL_FULL"
         const val ACTION_RELOAD_CONFIG = "RELOAD_CONFIG"
@@ -108,15 +109,26 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
                 }
             } else {
                 when (intent.action) {
-                    ACTION_START_SAT -> start(Stage.SATURDAY)
-                    ACTION_START_SUN -> start(Stage.SUNDAY)
-                    ACTION_PAUSE -> togglePause()
-                    ACTION_BREAK_DONE -> resetBreak()
-                    ACTION_REFUEL_FULL -> resetFuel()
-                    ACTION_RELOAD_CONFIG -> reloadConfig()
-                    ACTION_STOP -> stopTrip()
+                    ACTION_STOP -> {
+                        stopTrip()
+                        START_NOT_STICKY
+                    }
+                    ACTION_RESET -> {
+                        resetTrip()
+                        START_NOT_STICKY
+                    }
+                    else -> {
+                        when (intent.action) {
+                            ACTION_START_SAT -> start(Stage.SATURDAY)
+                            ACTION_START_SUN -> start(Stage.SUNDAY)
+                            ACTION_PAUSE -> togglePause()
+                            ACTION_BREAK_DONE -> resetBreak()
+                            ACTION_REFUEL_FULL -> resetFuel()
+                            ACTION_RELOAD_CONFIG -> reloadConfig()
+                        }
+                        START_STICKY
+                    }
                 }
-                START_STICKY
             }
         } catch (t: Throwable) {
             recordError("Start: ${t.javaClass.simpleName}: ${t.message}")
@@ -712,6 +724,44 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
         runtime.edit().clear().apply()
         snapshot = snapshot.copy(active = false, paused = false, nextTitle = "Tracking beendet")
         saveAndBroadcast()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
+
+    /**
+     * Discards one accidentally started/tested journey without touching settings,
+     * packing data, favourites or saved parking selections.
+     */
+    private fun resetTrip() {
+        runCatching { fused.removeLocationUpdates(callback) }
+        sessionId = System.nanoTime()
+        routeRequestId++
+        fuelRequestId++
+        active = false
+        paused = false
+        startedAt = 0L
+        pauseStartedAt = 0L
+        pausedTotal = 0L
+        distanceKm = 0.0
+        lastLocation = null
+        lastRouteLocation = null
+        lastFuelLocation = null
+        route = null
+        routeUpdatedAt = 0L
+        fuelSuggestion = null
+        fuelUpdatedAt = 0L
+        announced.clear()
+        previousDistance.clear()
+        runtime.edit().clear().commit()
+        snapshot = TripSnapshot(
+            active = false,
+            stage = stage,
+            nextTitle = "Bereit",
+            nextDetail = "Fahrt starten",
+            lastUpdatedEpochMs = System.currentTimeMillis()
+        )
+        saveAndBroadcast()
+        getSystemService(NotificationManager::class.java).cancel(LIVE_ID)
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }

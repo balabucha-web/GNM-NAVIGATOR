@@ -2,6 +2,7 @@ package de.balabucha.reisepilot
 
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.LocalDateTime
@@ -38,8 +39,14 @@ internal object GermanTrafficClient {
                         Callable { fetch(road, kind) }
                     }
                 }
-                val events = executor.invokeAll(tasks)
-                    .flatMap { runCatching { it.get() }.getOrDefault(emptyList()) }
+                val results = executor.invokeAll(tasks).map { future -> runCatching { future.get() } }
+                val successfulSources = results.count { it.isSuccess }
+                if (successfulSources == 0) {
+                    val reason = results.firstNotNullOfOrNull { it.exceptionOrNull()?.message }
+                    error(reason ?: "Autobahn-App-Daten nicht erreichbar")
+                }
+                val events = results
+                    .flatMap { it.getOrDefault(emptyList()) }
                     .distinctBy { "${it.road}:${it.title}:${it.detail.take(100)}" }
                     .sortedWith(compareByDescending<GermanTrafficEvent> { it.severity }.thenBy { it.road })
                     .take(8)
@@ -105,21 +112,31 @@ internal object GermanTrafficClient {
     }
 
     private fun http(url: String): String {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        return try {
-            connection.connectTimeout = 7_000
-            connection.readTimeout = 12_000
-            connection.instanceFollowRedirects = true
-            connection.setRequestProperty("Accept", "application/json")
-            connection.setRequestProperty("Accept-Language", "de")
-            connection.setRequestProperty("User-Agent", "ReisePilot/4.4 Android family travel app")
-            val code = connection.responseCode
-            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-            val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-            if (code !in 200..299) error("Autobahn-App HTTP $code")
-            body
-        } finally {
-            connection.disconnect()
+        var lastFailure = "Autobahn-App nicht erreichbar"
+        repeat(3) { attempt ->
+            val connection = URL(url).openConnection() as HttpURLConnection
+            try {
+                connection.connectTimeout = 7_000
+                connection.readTimeout = 12_000
+                connection.instanceFollowRedirects = true
+                connection.setRequestProperty("Accept", "application/json")
+                connection.setRequestProperty("Accept-Language", "de")
+                connection.setRequestProperty("User-Agent", "ReisePilot/4.8 Android family travel app")
+                val code = connection.responseCode
+                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                if (code in 200..299) return body
+                lastFailure = "Autobahn-App HTTP $code"
+                if (code !in setOf(429, 500, 502, 503, 504) || attempt == 2) error(lastFailure)
+                Thread.sleep(500L * (attempt + 1))
+            } catch (error: IOException) {
+                lastFailure = "Autobahn-App: ${error.message ?: error.javaClass.simpleName}"
+                if (attempt == 2) throw error
+                Thread.sleep(500L * (attempt + 1))
+            } finally {
+                connection.disconnect()
+            }
         }
+        error(lastFailure)
     }
 }

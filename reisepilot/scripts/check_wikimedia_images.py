@@ -38,7 +38,7 @@ def request_json(base: str, params: dict[str, str]) -> dict:
     request = urllib.request.Request(
         url,
         headers={
-            "User-Agent": "ReisePilot/4.7 exact gallery audit",
+            "User-Agent": "ReisePilot/4.8 exact gallery audit",
             "Accept": "application/json",
             "Accept-Language": "de,en;q=0.8",
         },

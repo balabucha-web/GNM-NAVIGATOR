@@ -1,6 +1,8 @@
 package de.balabucha.reisepilot
 
 import android.Manifest
+import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
@@ -88,6 +90,39 @@ class ReisePilotUserFlowTest {
         compose.activity.serviceAction(TripTrackingService.ACTION_STOP)
         compose.waitForIdle()
 
+        // Reproduce the reported accidental 10 km test drive and verify the
+        // user-facing reset clears only the journey state.
+        val testDrive = TripSnapshot(
+            active = false,
+            stage = Stage.SATURDAY,
+            driveMinutes = 14,
+            distanceTravelledKm = 10.0,
+            fuelLitres = 59.2,
+            nextTitle = "Tracking beendet",
+            nextDetail = "Testfahrt"
+        )
+        compose.activity.getSharedPreferences("trip_state", Context.MODE_PRIVATE).edit()
+            .putString("snapshot", testDrive.json().toString())
+            .commit()
+        compose.activity.sendBroadcast(Intent(TripTrackingService.ACTION_UPDATE).apply {
+            setPackage(compose.activity.packageName)
+            putExtra("snapshot", testDrive.json().toString())
+        })
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag("reset-trip", useUnmergedTree = true)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+        pageList("ReisePilot").performScrollToNode(hasTestTag("reset-trip"))
+        compose.onNodeWithTag("reset-trip", useUnmergedTree = true).performClick()
+        compose.onNodeWithText("Testfahrt zurücksetzen?").assertIsDisplayed()
+        compose.onNodeWithTag("confirm-reset-trip", useUnmergedTree = true).performClick()
+        compose.waitUntil(8_000) {
+            val raw = compose.activity.getSharedPreferences("trip_state", Context.MODE_PRIVATE)
+                .getString("snapshot", null)
+            val reset = TripSnapshot.fromJson(raw)
+            !reset.active && reset.distanceTravelledKm == 0.0 && reset.driveMinutes == 0
+        }
+
         clickTab("Route")
         compose.onNodeWithText("Live-Karte").assertIsDisplayed()
         Thread.sleep(2_000)
@@ -136,14 +171,14 @@ class ReisePilotUserFlowTest {
         compose.waitForIdle()
         compose.onNodeWithText("Route in Google Maps").assertIsDisplayed()
         compose.waitUntil(15_000) {
-            compose.onAllNodesWithText("1 / 3", useUnmergedTree = true)
+            compose.onAllNodesWithText("1 / 4", useUnmergedTree = true)
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
         }
         compose.onNodeWithContentDescription(
-            "Collioure · Foto 1",
+            "Collioure · Foto 2",
             useUnmergedTree = true
         ).assertExists()
-        compose.onNodeWithText("1 / 3").assertExists()
+        compose.onNodeWithText("1 / 4").assertExists()
         compose.onNodeWithTag("parking-section", useUnmergedTree = true).performScrollTo()
         compose.onNodeWithText("Parking du Cap Dourats").assertIsDisplayed()
         compose.onNodeWithTag("parking-save:${parkingFixture.id}", useUnmergedTree = true).performClick()
@@ -175,6 +210,8 @@ class ReisePilotUserFlowTest {
         }
         compose.onNodeWithTag("technical-settings-screen", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithText("Mapbox-Kartenzugang").assertIsDisplayed()
+        pageList("Mehr").performScrollToNode(hasTestTag("check-live-sources"))
+        compose.onNodeWithTag("check-live-sources", useUnmergedTree = true).assertIsDisplayed()
         compose.activity.onBackPressedDispatcher.onBackPressed()
         compose.waitForIdle()
         pageList("Mehr").performScrollToNode(hasText("System und Fahrzeug"))

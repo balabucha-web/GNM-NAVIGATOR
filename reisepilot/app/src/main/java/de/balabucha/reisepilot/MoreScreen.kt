@@ -31,6 +31,8 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
     var consumption by remember { mutableStateOf(prefs.getFloat("consumption", 7.4f).toString()) }
     var voice by remember { mutableStateOf(prefs.getBoolean("voice_alerts", true)) }
     var checking by remember { mutableStateOf(false) }
+    var checkingLiveSources by remember { mutableStateOf(false) }
+    var liveSources by remember { mutableStateOf<List<LiveSourceStatus>>(emptyList()) }
     var tokenStatus by remember {
         mutableStateOf(
             when {
@@ -159,6 +161,37 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
 
         item {
             AppCard {
+                Text("Live-Daten komplett prüfen", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "Echte Abrufe für Parkplätze, Bilder, Verkehr, Dieselpreise, Basiskarte und Route.",
+                    color = Muted
+                )
+                if (liveSources.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    liveSources.forEach { source ->
+                        StatusLine(source.name, source.detail, source.light)
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                Button(
+                    onClick = {
+                        checkingLiveSources = true
+                        scope.launch {
+                            liveSources = LiveDataDiagnostics.check(activity.applicationContext)
+                            checkingLiveSources = false
+                        }
+                    },
+                    enabled = !checkingLiveSources,
+                    modifier = Modifier.fillMaxWidth().testTag("check-live-sources"),
+                    shape = RoundedCornerShape(13.dp)
+                ) {
+                    Text(if (checkingLiveSources) "Live-Prüfung läuft …" else "Alle Live-Quellen jetzt prüfen")
+                }
+            }
+        }
+
+        item {
+            AppCard {
                 Text("Fahrzeug und Tankplanung", style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -191,12 +224,12 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
-                StatusLine("Frankreich", "offizielle Live-Preise · Autobahnstationen ausgeschlossen", Light.GREEN)
-                StatusLine("Spanien", "offizielle Live-Preise · Autobahnstationen herausgefiltert", Light.GREEN)
+                StatusLine("Frankreich", "offizielle Preisquelle eingerichtet · Live-Test oben", Light.GREY)
+                StatusLine("Spanien", "offizielle Preisquelle eingerichtet · Live-Test oben", Light.GREY)
                 StatusLine(
                     "Deutschland",
                     if (tankerKey.trim().length >= 30) "Tankerkönig-Key vorhanden" else "ohne Key nur geplante Fallback-Stopps",
-                    if (tankerKey.trim().length >= 30) Light.GREEN else Light.YELLOW
+                    if (tankerKey.trim().length >= 30) Light.YELLOW else Light.GREY
                 )
                 StatusLine("Andorra", "sinnvolle Stationen, Preis vor Ort vergleichen", Light.GREY)
                 Row(

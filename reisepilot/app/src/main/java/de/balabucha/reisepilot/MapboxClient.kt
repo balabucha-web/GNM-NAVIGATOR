@@ -103,7 +103,7 @@ object MapboxClient {
             readTimeout = 18_000
             requestMethod = "GET"
             setRequestProperty("Accept", "application/json")
-            setRequestProperty("User-Agent", "ReisePilot/4.1 Android")
+            setRequestProperty("User-Agent", "ReisePilot/4.8 Android family travel app")
         }
         val code = conn.responseCode
         val body = (if (code in 200..299) conn.inputStream else conn.errorStream)

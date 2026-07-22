@@ -2,6 +2,7 @@ package de.balabucha.reisepilot
 
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -171,6 +172,12 @@ internal object FuelRanking {
 }
 
 internal object FuelPriceClient {
+    internal fun liveProbeFrance(): Int = queryFrance(TripConfig.canet).size
+
+    internal fun liveProbeSpain(): Int = querySpain(GeoPoint(41.3874, 2.1686, "Barcelona")).size
+
+    internal fun liveProbeGermany(key: String): Int = queryGermany(TripConfig.schwerin, key).size
+
     fun query(
         current: GeoPoint,
         route: List<GeoPoint>,
@@ -304,16 +311,31 @@ internal object FuelPriceClient {
     private fun decimal(raw: String): Double? = raw.trim().replace(',', '.').toDoubleOrNull()
 
     private fun http(url: String): String {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        connection.connectTimeout = 12_000
-        connection.readTimeout = 20_000
-        connection.requestMethod = "GET"
-        connection.setRequestProperty("Accept", "application/json")
-        connection.setRequestProperty("User-Agent", "ReisePilot/4.1 Android")
-        val code = connection.responseCode
-        val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-        val body = stream.bufferedReader().use { it.readText() }
-        if (code !in 200..299) error("Tankdaten HTTP $code")
-        return body
+        var lastFailure = "Tankdaten nicht erreichbar"
+        repeat(3) { attempt ->
+            val connection = URL(url).openConnection() as HttpURLConnection
+            try {
+                connection.connectTimeout = 12_000
+                connection.readTimeout = 25_000
+                connection.requestMethod = "GET"
+                connection.instanceFollowRedirects = true
+                connection.setRequestProperty("Accept", "application/json")
+                connection.setRequestProperty("User-Agent", "ReisePilot/4.8 Android family travel app")
+                val code = connection.responseCode
+                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                if (code in 200..299 && body.isNotBlank()) return body
+                lastFailure = "Tankdaten HTTP $code"
+                if (code !in setOf(429, 500, 502, 503, 504) || attempt == 2) error(lastFailure)
+                Thread.sleep(700L * (attempt + 1))
+            } catch (error: IOException) {
+                lastFailure = "Tankdaten: ${error.message ?: error.javaClass.simpleName}"
+                if (attempt == 2) throw error
+                Thread.sleep(700L * (attempt + 1))
+            } finally {
+                connection.disconnect()
+            }
+        }
+        error(lastFailure)
     }
 }

@@ -1,6 +1,7 @@
 package de.balabucha.reisepilot
 
 import android.text.Html
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -104,20 +105,31 @@ internal object BisonTrafficClient {
     }
 
     private fun http(url: String): String {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        return try {
-            connection.connectTimeout = 10_000
-            connection.readTimeout = 18_000
-            connection.instanceFollowRedirects = true
-            connection.setRequestProperty("Accept", "text/html,application/xhtml+xml")
-            connection.setRequestProperty("Accept-Language", "fr,de;q=0.8")
-            connection.setRequestProperty("User-Agent", "ReisePilot/4.3 Android family travel app")
-            val code = connection.responseCode
-            val body = connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-            if (code !in 200..299) error("Bison Futé HTTP $code")
-            body
-        } finally {
-            connection.disconnect()
+        var lastFailure = "Bison Futé nicht erreichbar"
+        repeat(3) { attempt ->
+            val connection = URL(url).openConnection() as HttpURLConnection
+            try {
+                connection.connectTimeout = 10_000
+                connection.readTimeout = 18_000
+                connection.instanceFollowRedirects = true
+                connection.setRequestProperty("Accept", "text/html,application/xhtml+xml")
+                connection.setRequestProperty("Accept-Language", "fr,de;q=0.8")
+                connection.setRequestProperty("User-Agent", "ReisePilot/4.8 Android family travel app")
+                val code = connection.responseCode
+                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+                if (code in 200..299 && body.isNotBlank()) return body
+                lastFailure = "Bison Futé HTTP $code"
+                if (code !in setOf(429, 500, 502, 503, 504) || attempt == 2) error(lastFailure)
+                Thread.sleep(700L * (attempt + 1))
+            } catch (error: IOException) {
+                lastFailure = "Bison Futé: ${error.message ?: error.javaClass.simpleName}"
+                if (attempt == 2) throw error
+                Thread.sleep(700L * (attempt + 1))
+            } finally {
+                connection.disconnect()
+            }
         }
+        error(lastFailure)
     }
 }
