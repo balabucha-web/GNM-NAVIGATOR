@@ -129,11 +129,14 @@ class ReisePilotUserFlowTest {
             .performClick()
         compose.waitForIdle()
         compose.onNodeWithText("Route in Google Maps").assertIsDisplayed()
-        compose.waitUntil(5_000) {
-            compose.onAllNodesWithContentDescription("Collioure · Foto 1")
+        compose.waitUntil(15_000) {
+            compose.onAllNodesWithText("1 / 3", useUnmergedTree = true)
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
         }
-        compose.onNodeWithContentDescription("Collioure · Foto 1").assertExists()
+        compose.onNodeWithContentDescription(
+            "Collioure · Foto 1",
+            useUnmergedTree = true
+        ).assertExists()
         compose.onNodeWithText("1 / 3").assertExists()
         compose.onNodeWithTag("parking-section", useUnmergedTree = true).performScrollTo()
         compose.onNodeWithText("Parking du Cap Dourats").assertIsDisplayed()

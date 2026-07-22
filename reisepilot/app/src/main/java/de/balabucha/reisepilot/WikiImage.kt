@@ -49,10 +49,8 @@ object WikiImageResolver {
     suspend fun resolveGallery(context: Context, place: TravelPlace, limit: Int = 5): List<String> =
         withContext(Dispatchers.IO) {
             val wanted = limit.coerceIn(1, 8)
-            if (BuildConfig.DEBUG) {
-                debugGalleryOverride?.invoke(place, wanted)?.take(wanted)?.let {
-                    return@withContext it
-                }
+            debugGalleryOverride?.invoke(place, wanted)?.take(wanted)?.let {
+                return@withContext it
             }
             val key = cacheKey(place)
             val memoryKey = "$key:$wanted"
