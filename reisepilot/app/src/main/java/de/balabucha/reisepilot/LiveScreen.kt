@@ -16,15 +16,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import java.time.Instant
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -80,6 +83,7 @@ fun LiveScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
     }
 
     Page("ReisePilot", "Live-Dashboard für Route, Ankunft, Verkehr und Tank", modifier) {
+        if (!snapshot.active) item { VacationCountdownCard() }
         item { ClockCard(snapshot) }
         item {
             JourneyDashboardCard(
@@ -165,6 +169,138 @@ fun LiveScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun VacationCountdownCard() {
+    val celebrationEnds = remember { VACATION_DEPARTURE.plusHours(12).toInstant() }
+    var now by remember { mutableStateOf(Instant.now()) }
+    if (now.isAfter(celebrationEnds)) return
+
+    LaunchedEffect(Unit) {
+        while (!now.isAfter(celebrationEnds)) {
+            now = Instant.now()
+            delay(1_000L)
+        }
+    }
+
+    val countdown = remember(now) { departureCountdown(now) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("vacation-countdown"),
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            Color(0xFF10264A),
+                            Color(0xFF176B87),
+                            Color(0xFF00A6A6)
+                        )
+                    )
+                )
+                .padding(18.dp)
+        ) {
+            Canvas(Modifier.matchParentSize()) {
+                drawCircle(
+                    color = Color(0xFFFFD166).copy(alpha = .24f),
+                    radius = size.minDimension * .31f,
+                    center = Offset(size.width * .92f, size.height * .04f)
+                )
+                drawCircle(
+                    color = Color.White.copy(alpha = .07f),
+                    radius = size.minDimension * .43f,
+                    center = Offset(size.width * .05f, size.height * 1.08f)
+                )
+            }
+
+            Column(Modifier.fillMaxWidth()) {
+                Text(
+                    "☀  EDWARD & SOFIA · URLAUBS-COUNTDOWN",
+                    color = Color(0xFFE7FBFF),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = .5.sp
+                )
+                Spacer(Modifier.height(7.dp))
+
+                if (countdown.started) {
+                    Text(
+                        "LOS GEHT’S!",
+                        color = Color.White,
+                        fontSize = 36.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                    Text(
+                        "Canet, wir kommen!  🚙💨",
+                        color = Color(0xFFFFE49A),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                } else {
+                    Text(
+                        when {
+                            countdown.sleeps > 1 -> "Nur noch ${countdown.sleeps}-mal schlafen!"
+                            countdown.sleeps == 1 -> "Nur noch einmal schlafen!"
+                            else -> "Heute ist es endlich so weit!"
+                        },
+                        color = Color.White,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                    Spacer(Modifier.height(13.dp))
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(7.dp)
+                    ) {
+                        CountdownUnit(countdown.days, "TAGE", Modifier.weight(1f))
+                        CountdownUnit(countdown.hours, "STD.", Modifier.weight(1f))
+                        CountdownUnit(countdown.minutes, "MIN.", Modifier.weight(1f))
+                        CountdownUnit(countdown.seconds, "SEK.", Modifier.weight(1f))
+                    }
+                }
+
+                Spacer(Modifier.height(11.dp))
+                Text(
+                    "Späteste Abfahrt · Samstag, 25. Juli · 09:00 Uhr",
+                    color = Color(0xFFD9F4F5),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CountdownUnit(value: Int, label: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier
+            .background(Color.White.copy(alpha = .14f), RoundedCornerShape(15.dp))
+            .padding(horizontal = 5.dp, vertical = 9.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            value.toString().padStart(2, '0'),
+            color = Color.White,
+            fontSize = 27.sp,
+            fontWeight = FontWeight.Black,
+            maxLines = 1
+        )
+        Text(
+            label,
+            color = Color(0xFFD9F4F5),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1
+        )
     }
 }
 

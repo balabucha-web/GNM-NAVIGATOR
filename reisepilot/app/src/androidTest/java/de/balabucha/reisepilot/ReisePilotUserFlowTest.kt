@@ -75,8 +75,14 @@ class ReisePilotUserFlowTest {
     @Test
     fun primaryUserJourney_remainsStable_andCachesRealDestinationGallery() {
         compose.onNodeWithText("ReisePilot").assertIsDisplayed()
+        if (java.time.Instant.now().isBefore(VACATION_DEPARTURE.toInstant())) {
+            compose.onNodeWithTag("vacation-countdown", useUnmergedTree = true).assertIsDisplayed()
+            compose.onNodeWithText("Späteste Abfahrt · Samstag, 25. Juli · 09:00 Uhr")
+                .assertIsDisplayed()
+        }
 
         // Exercise the start action without making the UI audit depend on an emulator GPS fix.
+        pageList("ReisePilot").performScrollToNode(hasText("Fahrt starten"))
         clickControl("Fahrt starten")
         Thread.sleep(2_000)
         compose.activity.serviceAction(TripTrackingService.ACTION_STOP)
