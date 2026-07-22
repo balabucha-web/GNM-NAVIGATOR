@@ -438,8 +438,6 @@ private fun PlaceDetailSheet(
                     WarningCard("Praktischer Tipp", place.tip, Light.GREEN)
                 }
                 Spacer(Modifier.height(14.dp))
-                ParkingSection(activity = activity, place = place)
-                Spacer(Modifier.height(14.dp))
                 Button(
                     onClick = {
                         activity.openPointRoute(place.point, place.title)
@@ -448,7 +446,9 @@ private fun PlaceDetailSheet(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp)
                 ) { Text("Route in Google Maps") }
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(14.dp))
+                ParkingSection(activity = activity, place = place)
+                Spacer(Modifier.height(14.dp))
                 OutlinedButton(
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth(),

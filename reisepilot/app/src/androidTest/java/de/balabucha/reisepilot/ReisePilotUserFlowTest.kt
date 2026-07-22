@@ -148,7 +148,8 @@ class ReisePilotUserFlowTest {
         }
         WikiImageResolver.debugGalleryOverride = null
         ParkingResolver.debugOverride = null
-        clickControl("Zurück zur Liste")
+        compose.onNodeWithText("Zurück zur Liste").performScrollTo().performClick()
+        compose.waitForIdle()
         pageList("Entdecken").assertExists()
         compose.onNodeWithTag(cardTag, useUnmergedTree = true).assertIsDisplayed()
 
