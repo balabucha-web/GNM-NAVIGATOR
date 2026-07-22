@@ -34,7 +34,7 @@ MEDIA = ROOT / "app/src/main/java/de/balabucha/reisepilot/DestinationMedia.kt"
 OUTPUT = ROOT / "app/src/main/assets/destination_photos"
 CACHE = Path("/tmp/reisepilot-media-cache")
 USER_AGENT = (
-    "ReisePilot/4.8 offline destination photo builder "
+    "ReisePilot/4.9 offline destination photo builder "
     "(https://github.com/balabucha-web/GNM-NAVIGATOR)"
 )
 CELL = (480, 270)

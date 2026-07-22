@@ -425,7 +425,7 @@ object ParkingResolver {
             connection.instanceFollowRedirects = true
             connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
             connection.setRequestProperty("Accept", "application/json")
-            connection.setRequestProperty("User-Agent", "ReisePilot/4.8 Android family travel app")
+            connection.setRequestProperty("User-Agent", "ReisePilot/4.9 Android family travel app")
             connection.outputStream.bufferedWriter(Charsets.UTF_8).use { it.write(body) }
             val code = connection.responseCode
             val stream = if (code in 200..299) connection.inputStream else connection.errorStream

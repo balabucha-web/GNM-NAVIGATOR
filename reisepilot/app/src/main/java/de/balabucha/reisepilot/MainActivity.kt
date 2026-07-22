@@ -43,9 +43,26 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun loadSnapshot() {
-        snapshot = TripSnapshot.fromJson(
+        val loaded = TripSnapshot.fromJson(
             getSharedPreferences("trip_state", MODE_PRIVATE).getString("snapshot", null)
         )
+        snapshot = if (
+            !loaded.active && loaded.tripMode == TripMode.TEST &&
+            tripModeAt(java.time.Instant.now()) == TripMode.REAL
+        ) {
+            TripSnapshot(
+                stage = loaded.stage,
+                tripMode = TripMode.REAL,
+                nextTitle = "Reise bereit",
+                nextDetail = "Reise starten"
+            ).also {
+                getSharedPreferences("trip_state", MODE_PRIVATE).edit()
+                    .putString("snapshot", it.json().toString())
+                    .apply()
+            }
+        } else {
+            loaded
+        }
     }
 
     fun startTrip(stage: Stage) {

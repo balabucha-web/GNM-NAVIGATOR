@@ -665,7 +665,7 @@ object WikiImageResolver {
             connection.instanceFollowRedirects = true
             connection.setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
             connection.setRequestProperty("Accept-Language", "de,en;q=0.8")
-            connection.setRequestProperty("User-Agent", "ReisePilot/4.8 Android family travel app")
+            connection.setRequestProperty("User-Agent", "ReisePilot/4.9 Android family travel app")
             val code = connection.responseCode
             val contentType = connection.contentType.orEmpty().lowercase(Locale.ROOT)
             if (code !in 200..299 || !contentType.startsWith("image/")) return null
@@ -713,7 +713,7 @@ object WikiImageResolver {
                 connection.instanceFollowRedirects = true
                 connection.setRequestProperty("Accept", "application/json")
                 connection.setRequestProperty("Accept-Language", "de,en;q=0.8")
-                connection.setRequestProperty("User-Agent", "ReisePilot/4.8 Android family travel app")
+                connection.setRequestProperty("User-Agent", "ReisePilot/4.9 Android family travel app")
                 val code = connection.responseCode
                 lastCode = code
                 val stream = if (code in 200..299) connection.inputStream else connection.errorStream

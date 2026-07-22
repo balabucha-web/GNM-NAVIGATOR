@@ -48,6 +48,7 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
     private var ttsReady = false
 
     private var stage = Stage.SATURDAY
+    private var tripMode = TripMode.TEST
     private var active = false
     private var paused = false
     private var lastLocation: Location? = null
@@ -65,6 +66,10 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
     private var sessionId = System.nanoTime()
     private var routeRequestId = 0L
     private var fuelRequestId = 0L
+
+    private val promoteAtDeparture = Runnable {
+        if (active && tripMode == TripMode.TEST) promoteTestToReal()
+    }
 
     private val announced = mutableSetOf<String>()
     private val previousDistance = mutableMapOf<String, Double>()
@@ -139,6 +144,7 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
 
     private fun start(newStage: Stage) {
         stage = newStage
+        tripMode = tripModeAt(Instant.now())
         sessionId = System.nanoTime()
         routeRequestId = 0L
         fuelRequestId = 0L
@@ -158,11 +164,64 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
         announced.clear()
         previousDistance.clear()
         diagnostics.edit().remove("last_error").apply()
-        snapshot = TripSnapshot(active = true, stage = stage, nextTitle = "GPS wird gestartet")
+        snapshot = TripSnapshot(
+            active = true,
+            stage = stage,
+            tripMode = tripMode,
+            nextTitle = if (tripMode == TripMode.TEST) "Testfahrt wird gestartet" else "Reise wird gestartet"
+        )
         saveRuntime()
         saveAndBroadcast()
-        foreground("GPS wird gestartet")
+        foreground(if (tripMode == TripMode.TEST) "Testaufzeichnung aktiv" else "Reiseaufzeichnung aktiv")
+        scheduleDeparturePromotion()
         requestLocations()
+    }
+
+    private fun scheduleDeparturePromotion() {
+        main.removeCallbacks(promoteAtDeparture)
+        if (!active || tripMode != TripMode.TEST) return
+        val delayMs = Duration.between(Instant.now(), VACATION_DEPARTURE.toInstant()).toMillis()
+        if (delayMs <= 0L) {
+            promoteTestToReal()
+        } else {
+            main.postDelayed(promoteAtDeparture, delayMs)
+        }
+    }
+
+    /**
+     * At departure, discard setup kilometres and continue as a fresh real journey.
+     * The running foreground service and location permission stay in place.
+     */
+    private fun promoteTestToReal() {
+        if (!active || tripMode != TripMode.TEST || tripModeAt(Instant.now()) != TripMode.REAL) return
+        sessionId = System.nanoTime()
+        routeRequestId++
+        fuelRequestId++
+        tripMode = TripMode.REAL
+        paused = false
+        startedAt = System.currentTimeMillis()
+        pauseStartedAt = 0L
+        pausedTotal = 0L
+        distanceKm = 0.0
+        lastLocation = null
+        lastRouteLocation = null
+        lastFuelLocation = null
+        route = null
+        routeUpdatedAt = 0L
+        fuelSuggestion = null
+        fuelUpdatedAt = 0L
+        announced.clear()
+        previousDistance.clear()
+        snapshot = TripSnapshot(
+            active = true,
+            stage = stage,
+            tripMode = TripMode.REAL,
+            nextTitle = "Reiseaufzeichnung aktiv",
+            nextDetail = "GPS-Position wird aktualisiert"
+        )
+        saveRuntime()
+        saveAndBroadcast()
+        foreground("Reiseaufzeichnung aktiv")
     }
 
     private fun reloadConfig() {
@@ -189,7 +248,11 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
         pauseStartedAt = 0L
         pausedTotal = 0L
         runtime.edit().clear().apply()
-        snapshot = TripSnapshot(active = false, stage = stage, nextTitle = "Bereit")
+        snapshot = snapshot.copy(
+            active = false,
+            paused = false,
+            nextTitle = if (snapshot.tripMode == TripMode.TEST) "Testfahrt beendet" else "Reiseaufzeichnung beendet"
+        )
         saveAndBroadcast()
     }
 
@@ -212,6 +275,9 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
 
     private fun onLocation(location: Location) {
         try {
+            if (tripMode == TripMode.TEST && tripModeAt(Instant.now()) == TripMode.REAL) {
+                promoteTestToReal()
+            }
             lastLocation?.let { old ->
                 val jump = old.distanceTo(location)
                 if (location.accuracy <= 100f && jump in 5f..2_000f) {
@@ -404,6 +470,7 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
                 active = active,
                 paused = paused,
                 stage = stage,
+                tripMode = tripMode,
                 lat = current?.lat,
                 lon = current?.lon,
                 speedKmh = if (location?.hasSpeed() == true) (location.speed * 3.6).roundToInt() else null,
@@ -573,6 +640,7 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
         else LocalDate.of(2026, 7, 26)
 
     private fun scheduleLight(etaMs: Long?): Light {
+        if (tripMode == TripMode.TEST) return Light.GREY
         if (etaMs == null || LocalDate.now() != tripDate()) return Light.GREY
         val eta = Instant.ofEpochMilli(etaMs).atZone(ZoneId.systemDefault())
         val greenTime = if (stage == Stage.SATURDAY) LocalTime.of(21, 0) else LocalTime.of(18, 30)
@@ -716,6 +784,7 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
 
     private fun stopTrip() {
         runCatching { fused.removeLocationUpdates(callback) }
+        main.removeCallbacks(promoteAtDeparture)
         sessionId = System.nanoTime()
         routeRequestId++
         fuelRequestId++
@@ -733,7 +802,12 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
      * packing data, favourites or saved parking selections.
      */
     private fun resetTrip() {
+        if (tripMode == TripMode.REAL || snapshot.tripMode == TripMode.REAL) {
+            recordError("Reset der echten Reise blockiert")
+            return
+        }
         runCatching { fused.removeLocationUpdates(callback) }
+        main.removeCallbacks(promoteAtDeparture)
         sessionId = System.nanoTime()
         routeRequestId++
         fuelRequestId++
@@ -752,12 +826,14 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
         fuelUpdatedAt = 0L
         announced.clear()
         previousDistance.clear()
+        tripMode = tripModeAt(Instant.now())
         runtime.edit().clear().commit()
         snapshot = TripSnapshot(
             active = false,
             stage = stage,
-            nextTitle = "Bereit",
-            nextDetail = "Fahrt starten",
+            tripMode = tripMode,
+            nextTitle = if (tripMode == TripMode.TEST) "Testfahrt bereit" else "Reise bereit",
+            nextDetail = if (tripMode == TripMode.TEST) "Testfahrt starten" else "Reise starten",
             lastUpdatedEpochMs = System.currentTimeMillis()
         )
         saveAndBroadcast()
@@ -798,8 +874,13 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
         return NotificationCompat.Builder(this, LIVE_CHANNEL)
             .setSmallIcon(R.drawable.ic_launcher)
             .setContentTitle(
-                if (stage == Stage.SATURDAY) "Schwerin → Montbéliard"
-                else "Montbéliard → Canet"
+                buildString {
+                    if (tripMode == TripMode.TEST) append("Testfahrt · ")
+                    append(
+                        if (stage == Stage.SATURDAY) "Schwerin → Montbéliard"
+                        else "Montbéliard → Canet"
+                    )
+                }
             )
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
@@ -873,6 +954,7 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
             .putBoolean("active", active)
             .putBoolean("paused", paused)
             .putString("stage", stage.name)
+            .putString("trip_mode", tripMode.name)
             .putLong("started_at", startedAt)
             .putLong("pause_started_at", pauseStartedAt)
             .putLong("paused_total", pausedTotal)
@@ -904,6 +986,9 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
         stage = runCatching {
             Stage.valueOf(runtime.getString("stage", Stage.SATURDAY.name)!!)
         }.getOrDefault(Stage.SATURDAY)
+        tripMode = runCatching {
+            TripMode.valueOf(runtime.getString("trip_mode", snapshot.tripMode.name)!!)
+        }.getOrDefault(snapshot.tripMode)
         startedAt = runtime.getLong("started_at", 0L)
         pauseStartedAt = runtime.getLong("pause_started_at", 0L)
         pausedTotal = runtime.getLong("paused_total", 0L)
@@ -917,7 +1002,9 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
             pauseStartedAt = 0L
             pausedTotal = 0L
             runtime.edit().clear().apply()
-            snapshot = snapshot.copy(active = false, paused = false, driveMinutes = 0)
+            snapshot = snapshot.copy(active = false, paused = false)
+        } else {
+            scheduleDeparturePromotion()
         }
     }
 
@@ -931,6 +1018,7 @@ class TripTrackingService : Service(), TextToSpeech.OnInitListener {
         sessionId = System.nanoTime()
         routeRequestId++
         fuelRequestId++
+        main.removeCallbacks(promoteAtDeparture)
         runCatching { fused.removeLocationUpdates(callback) }
         worker.shutdownNow()
         runCatching { tts?.shutdown() }

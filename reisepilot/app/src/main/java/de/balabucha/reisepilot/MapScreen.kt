@@ -61,7 +61,7 @@ fun MapScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifier
         tolls = emptyList()
     )
 
-    Page("Live-Karte", "Native Karte mit Verkehr, Maut und Tankstopps", modifier) {
+    Page("Route & Karte", "", modifier) {
         item {
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 Stage.entries.forEachIndexed { index, item ->
@@ -96,10 +96,6 @@ fun MapScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifier
         }
 
         item {
-            Text("Mit einem Finger verschieben · mit zwei Fingern zoomen und drehen", color = Muted, style = MaterialTheme.typography.bodySmall)
-        }
-
-        item {
             Card(
                 Modifier.fillMaxWidth().height(520.dp),
                 shape = RoundedCornerShape(22.dp),
@@ -122,7 +118,7 @@ fun MapScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifier
                 onClick = { mapInstance++ },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(13.dp)
-            ) { Text("Gesamte Route wieder anzeigen") }
+            ) { Text("Gesamte Route anzeigen") }
         }
 
         item {
@@ -158,7 +154,7 @@ fun MapScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifier
                                 Text(saved.placeTitle, color = Muted, style = MaterialTheme.typography.bodySmall)
                             }
                             TextButton(onClick = { activity.openPointRoute(saved.spot.point, saved.spot.name) }) {
-                                Text("Route")
+                                Text("Navigieren")
                             }
                             TextButton(onClick = {
                                 val place = DestinationCatalog.places.firstOrNull {
@@ -167,15 +163,10 @@ fun MapScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifier
                                 if (place != null) ParkingSelectionStore.remove(activity.applicationContext, place)
                                 parkingRevision++
                                 mapInstance++
-                            }) { Text("Entfernen") }
+                            }) { Text("Von Karte entfernen") }
                         }
                     }
                 }
-                Text(
-                    "Die Basiskarte läuft nativ. Google Maps bleibt für die eigentliche Navigation zuständig.",
-                    color = Muted,
-                    style = MaterialTheme.typography.bodySmall
-                )
             }
         }
 

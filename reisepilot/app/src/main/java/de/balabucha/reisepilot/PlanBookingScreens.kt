@@ -31,7 +31,7 @@ fun PlanScreen(activity: MainActivity, selected: Stage, modifier: Modifier) {
         }
 
         if (stage == Stage.SATURDAY) {
-            item { Timeline("07:30–08:00", "Abfahrt Schwerin", "Standard 07:45 · Freitagabend Hoyer volltanken", Light.GREEN) }
+            item { Timeline("09:00", "Abfahrt Schwerin", "Freitagabend Hoyer volltanken", Light.GREEN) }
             item { Timeline("nach 2:15 Std.", "Pause vorbereiten", "Die App warnt gelb, ab 2:30 Stunden rot.", Light.GREEN) }
             item { Timeline("automatisch", "Günstig tanken", "Live-Preis plus Umweg; Autobahntankstellen werden ausgeschlossen. BayWa Schwabach bleibt nur Fallback.", Light.YELLOW) }
             item { Timeline("ca. 16:30", "Zweite Pause", "Zeitpunkt wird nach echter Fahrzeit angepasst.", Light.GREEN) }

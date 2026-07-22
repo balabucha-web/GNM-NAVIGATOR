@@ -4,7 +4,6 @@ import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
-import java.time.temporal.ChronoUnit
 
 internal val VACATION_TIME_ZONE: ZoneId = ZoneId.of("Europe/Berlin")
 
@@ -24,9 +23,11 @@ internal data class DepartureCountdown(
     val hours: Int,
     val minutes: Int,
     val seconds: Int,
-    val sleeps: Int,
     val started: Boolean
 )
+
+internal fun tripModeAt(now: Instant): TripMode =
+    if (now.isBefore(VACATION_DEPARTURE.toInstant())) TripMode.TEST else TripMode.REAL
 
 internal fun departureCountdown(now: Instant): DepartureCountdown {
     val remainingMillis = Duration.between(now, VACATION_DEPARTURE.toInstant()).toMillis()
@@ -36,7 +37,6 @@ internal fun departureCountdown(now: Instant): DepartureCountdown {
             hours = 0,
             minutes = 0,
             seconds = 0,
-            sleeps = 0,
             started = true
         )
     }
@@ -47,17 +47,11 @@ internal fun departureCountdown(now: Instant): DepartureCountdown {
     val hours = totalSeconds % 86_400L / 3_600L
     val minutes = totalSeconds % 3_600L / 60L
     val seconds = totalSeconds % 60L
-    val sleeps = ChronoUnit.DAYS.between(
-        now.atZone(VACATION_TIME_ZONE).toLocalDate(),
-        VACATION_DEPARTURE.toLocalDate()
-    ).toInt().coerceAtLeast(0)
-
     return DepartureCountdown(
         days = days.toInt(),
         hours = hours.toInt(),
         minutes = minutes.toInt(),
         seconds = seconds.toInt(),
-        sleeps = sleeps,
         started = false
     )
 }

@@ -26,7 +26,7 @@ ENDPOINTS = (
     "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
     "https://overpass.private.coffee/api/interpreter",
 )
-USER_AGENT = "ReisePilot/4.8 offline parking fallback builder"
+USER_AGENT = "ReisePilot/4.9 offline parking fallback builder"
 
 
 @dataclass(frozen=True)

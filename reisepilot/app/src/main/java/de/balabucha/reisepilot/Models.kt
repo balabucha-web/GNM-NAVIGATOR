@@ -4,6 +4,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 enum class Stage { SATURDAY, SUNDAY }
+enum class TripMode { TEST, REAL }
 enum class Light { GREEN, YELLOW, RED, GREY }
 
 data class GeoPoint(
@@ -81,6 +82,7 @@ data class TripSnapshot(
     val active: Boolean = false,
     val paused: Boolean = false,
     val stage: Stage = Stage.SATURDAY,
+    val tripMode: TripMode = TripMode.TEST,
     val lat: Double? = null,
     val lon: Double? = null,
     val speedKmh: Int? = null,
@@ -97,7 +99,7 @@ data class TripSnapshot(
     val fuelLitres: Double = 60.0,
     val fuelSuggestion: FuelSuggestion? = null,
     val nextTitle: String = "Bereit",
-    val nextDetail: String = "Fahrt starten",
+    val nextDetail: String = "Noch nicht gestartet",
     val nextDistanceM: Int? = null,
     val routeGeoJson: String = "",
     val congestionJson: String = "[]",
@@ -112,6 +114,7 @@ data class TripSnapshot(
         return JSONObject()
             .put("active", active).put("paused", paused)
             .put("stage", stage.name)
+            .put("tripMode", tripMode.name)
             .put("lat", lat ?: JSONObject.NULL).put("lon", lon ?: JSONObject.NULL)
             .put("speedKmh", speedKmh ?: JSONObject.NULL)
             .put("accuracyM", accuracyM ?: JSONObject.NULL)
@@ -151,6 +154,10 @@ data class TripSnapshot(
                     paused = j.optBoolean("paused"),
                     stage = runCatching { Stage.valueOf(j.optString("stage")) }
                         .getOrDefault(Stage.SATURDAY),
+                    // Builds up to 20 did not persist a mode. Their stored kilometres
+                    // came from setup runs and must never be treated as the real trip.
+                    tripMode = runCatching { TripMode.valueOf(j.optString("tripMode")) }
+                        .getOrDefault(TripMode.TEST),
                     lat = if (j.isNull("lat")) null else j.getDouble("lat"),
                     lon = if (j.isNull("lon")) null else j.getDouble("lon"),
                     speedKmh = if (j.isNull("speedKmh")) null else j.getInt("speedKmh"),
@@ -167,7 +174,7 @@ data class TripSnapshot(
                     fuelLitres = j.optDouble("fuelLitres", 60.0),
                     fuelSuggestion = if (j.isNull("fuelSuggestion")) null else FuelSuggestion.fromJson(j.getJSONObject("fuelSuggestion")),
                     nextTitle = j.optString("nextTitle", "Bereit"),
-                    nextDetail = j.optString("nextDetail", "Fahrt starten"),
+                    nextDetail = j.optString("nextDetail", "Noch nicht gestartet"),
                     nextDistanceM = if (j.isNull("nextDistanceM")) null else j.getInt("nextDistanceM"),
                     routeGeoJson = j.optString("routeGeoJson"),
                     congestionJson = j.optString("congestionJson", "[]"),

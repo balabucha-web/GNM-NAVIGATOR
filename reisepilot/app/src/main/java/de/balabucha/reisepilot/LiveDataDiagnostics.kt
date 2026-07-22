@@ -83,7 +83,7 @@ internal object LiveDataDiagnostics {
                         connection.connectTimeout = 8_000
                         connection.readTimeout = 12_000
                         connection.setRequestProperty("Accept", "application/json")
-                        connection.setRequestProperty("User-Agent", "ReisePilot/4.8 Android family travel app")
+                        connection.setRequestProperty("User-Agent", "ReisePilot/4.9 Android family travel app")
                         val code = connection.responseCode
                         require(code in 200..299) { "OpenFreeMap HTTP $code" }
                         val body = connection.inputStream.bufferedReader().use { it.readText() }

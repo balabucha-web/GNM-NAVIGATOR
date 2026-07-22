@@ -121,7 +121,7 @@ internal object GermanTrafficClient {
                 connection.instanceFollowRedirects = true
                 connection.setRequestProperty("Accept", "application/json")
                 connection.setRequestProperty("Accept-Language", "de")
-                connection.setRequestProperty("User-Agent", "ReisePilot/4.8 Android family travel app")
+                connection.setRequestProperty("User-Agent", "ReisePilot/4.9 Android family travel app")
                 val code = connection.responseCode
                 val stream = if (code in 200..299) connection.inputStream else connection.errorStream
                 val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()

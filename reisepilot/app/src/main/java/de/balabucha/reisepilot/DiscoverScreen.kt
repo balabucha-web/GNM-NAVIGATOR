@@ -55,7 +55,7 @@ fun DiscoverScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Mod
 
     Page(
         title = "Entdecken",
-        subtitle = "Ausflugsziele · passende Bilder, Parkplätze und Route",
+        subtitle = "",
         modifier = modifier
     ) {
         item {
@@ -142,16 +142,7 @@ fun DiscoverScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Mod
             }
         }
 
-        item {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("${places.size} passende Ziele", fontWeight = FontWeight.Bold)
-                Text("Bild antippen für Details & Route", color = Muted, fontSize = 12.sp)
-            }
-        }
+        item { Text("${places.size} passende Ziele", fontWeight = FontWeight.Bold) }
 
         if (places.isEmpty()) {
             item {
@@ -201,17 +192,17 @@ private fun RegionControl(
                 Text(selectedRegion.label, style = MaterialTheme.typography.titleLarge)
                 Text(
                     when {
-                        !locationAvailable -> "Ohne Tracking ist Canet die Startregion. Region jederzeit manuell wählen."
-                        followLocation && automaticRegion != null -> "Automatisch nach Standort · erkannt: ${automaticRegion.label}"
-                        followLocation -> "Unterwegs · keine Urlaubsregion im Umkreis erkannt. Auswahl bleibt manuell nutzbar."
-                        else -> "Manuell gewählt · automatische Standortauswahl pausiert"
+                        !locationAvailable -> "Startregion"
+                        followLocation && automaticRegion != null -> "Per Standort erkannt"
+                        followLocation -> "Keine Region am Standort erkannt"
+                        else -> "Manuell gewählt"
                     },
                     color = Muted,
                     fontSize = 13.sp
                 )
             }
             if (!followLocation && locationAvailable) {
-                TextButton(onClick = onAuto) { Text("Auto") }
+                TextButton(onClick = onAuto) { Text("Standort verwenden") }
             }
         }
     }
@@ -297,7 +288,7 @@ private fun PlaceListItem(
                 )
             }
             Spacer(Modifier.width(8.dp))
-            Text("›", color = Blue, fontSize = 28.sp, fontWeight = FontWeight.Light)
+            Text("Details", color = Blue, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -538,7 +529,6 @@ private fun ParkingSection(activity: MainActivity, place: TravelPlace) {
         ) {
             Column(Modifier.weight(1f)) {
                 Text("Parken", style = MaterialTheme.typography.titleLarge)
-                Text("Nahe Parkplätze statt nur Route zum eigentlichen Ziel", color = Muted, fontSize = 12.sp)
             }
             TextButton(onClick = { refreshKey++ }, enabled = !loading) {
                 Text(if (loading) "Lädt …" else "Aktualisieren")

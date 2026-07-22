@@ -22,7 +22,12 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 
 @Composable
-fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifier) {
+fun MoreScreen(
+    activity: MainActivity,
+    snapshot: TripSnapshot,
+    modifier: Modifier,
+    onBack: () -> Unit
+) {
     val prefs = remember { activity.getSharedPreferences("settings", Context.MODE_PRIVATE) }
     val diagnostics = remember { activity.getSharedPreferences("diagnostics", Context.MODE_PRIVATE) }
     var token by remember { mutableStateOf(prefs.getString("mapbox_token", "").orEmpty()) }
@@ -33,6 +38,7 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
     var checking by remember { mutableStateOf(false) }
     var checkingLiveSources by remember { mutableStateOf(false) }
     var liveSources by remember { mutableStateOf<List<LiveSourceStatus>>(emptyList()) }
+    var confirmTestReset by remember { mutableStateOf(false) }
     var tokenStatus by remember {
         mutableStateOf(
             when {
@@ -61,18 +67,25 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
     val mapsActive = appPrefs.getBoolean("maps", false)
     val mapsInstalled = activity.isInstalled("com.google.android.apps.maps")
     val bisonInstalled = activity.isInstalled("fr.gouv.bisonfute")
+    val hasTestData = snapshot.tripMode == TripMode.TEST && (
+        snapshot.active || snapshot.distanceTravelledKm > 0.01 ||
+            snapshot.driveMinutes > 0 || snapshot.remainingKm != null
+        )
 
-    Page("Mehr", "Einstellungen und Systemstatus · Version ${BuildConfig.VERSION_NAME}", modifier) {
+    Page("Einstellungen", "", modifier) {
+        item {
+            OutlinedButton(
+                onClick = onBack,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(13.dp)
+            ) { Text("Zurück zu Mehr") }
+        }
         item {
             AppCard {
                 Text(
-                    "Mapbox-Kartenzugang",
+                    "Karte und Live-Verkehr",
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.testTag("technical-settings-screen")
-                )
-                Text(
-                    "Der öffentliche Token liefert Live-Route, ETA, Verkehr und Mautdaten.",
-                    color = Muted
                 )
                 Spacer(Modifier.height(10.dp))
                 OutlinedTextField(
@@ -162,10 +175,6 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
         item {
             AppCard {
                 Text("Live-Daten komplett prüfen", style = MaterialTheme.typography.titleLarge)
-                Text(
-                    "Echte Abrufe für Parkplätze, Bilder, Verkehr, Dieselpreise, Basiskarte und Route.",
-                    color = Muted
-                )
                 if (liveSources.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
                     liveSources.forEach { source ->
@@ -217,9 +226,6 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
                     value = tankerKey,
                     onValueChange = { tankerKey = it.trim() },
                     label = { Text("Tankerkönig-Key · optional") },
-                    supportingText = {
-                        Text("Nur für deutsche Live-Preise. Frankreich und Spanien funktionieren ohne zusätzlichen Key.")
-                    },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -264,7 +270,7 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
 
         item {
             AppCard {
-                Text("Hintergrundbetrieb", style = MaterialTheme.typography.titleLarge)
+                Text("Berechtigungen und Hintergrund", style = MaterialTheme.typography.titleLarge)
                 StatusLine(
                     "Tracking",
                     if (snapshot.active) "aktiv" else "nicht gestartet",
@@ -296,7 +302,7 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(13.dp)
-                ) { Text("Benachrichtigungszugriff") }
+                ) { Text("Benachrichtigungszugriff öffnen") }
                 Spacer(Modifier.height(7.dp))
                 OutlinedButton(
                     onClick = {
@@ -309,7 +315,7 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(13.dp)
-                ) { Text("Android-App-Einstellungen") }
+                ) { Text("Android-Berechtigungen öffnen") }
             }
         }
 
@@ -340,19 +346,32 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
                         onClick = { activity.openPackage("com.google.android.apps.maps") },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(13.dp)
-                    ) { Text("Maps öffnen") }
+                    ) { Text("Google Maps öffnen") }
                     OutlinedButton(
                         onClick = { activity.openBisonFute() },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(13.dp)
-                    ) { Text("Bison Futé") }
+                    ) { Text("Bison Futé öffnen") }
                 }
-                Spacer(Modifier.height(9.dp))
-                Text(
-                    "Die Blitzer-App wird nicht automatisch gestartet oder als Pflichtstatus überwacht.",
-                    color = Muted,
-                    fontSize = MaterialTheme.typography.bodySmall.fontSize
-                )
+            }
+        }
+
+        if (hasTestData) {
+            item {
+                AppCard {
+                    Text("Testfahrt", style = MaterialTheme.typography.titleLarge)
+                    StatusLine(
+                        "Gespeicherter Teststand",
+                        "${"%.1f".format(snapshot.distanceTravelledKm)} km · ${minuteText(snapshot.driveMinutes)} Std.",
+                        Light.YELLOW
+                    )
+                    OutlinedButton(
+                        onClick = { confirmTestReset = true },
+                        modifier = Modifier.fillMaxWidth().testTag("reset-test-trip"),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Red),
+                        shape = RoundedCornerShape(13.dp)
+                    ) { Text("Testfahrt löschen") }
+                }
             }
         }
 
@@ -363,5 +382,31 @@ fun MoreScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
                 style = MaterialTheme.typography.bodySmall
             )
         }
+    }
+
+    if (confirmTestReset) {
+        AlertDialog(
+            onDismissRequest = { confirmTestReset = false },
+            title = { Text("Testfahrt löschen?") },
+            text = {
+                Text(
+                    "Strecke, Fahrzeit, Route und Tankberechnung der Testfahrt werden gelöscht. " +
+                        "Packliste, Ziele, Einstellungen und Parkplätze bleiben erhalten."
+                )
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmTestReset = false }) { Text("Abbrechen") }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        confirmTestReset = false
+                        activity.serviceAction(TripTrackingService.ACTION_RESET)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Red),
+                    modifier = Modifier.testTag("confirm-reset-test-trip")
+                ) { Text("Testdaten löschen") }
+            }
+        )
     }
 }

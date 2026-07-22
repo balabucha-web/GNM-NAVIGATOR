@@ -23,7 +23,6 @@ class DepartureCountdownTest {
         assertEquals(3, countdown.hours)
         assertEquals(4, countdown.minutes)
         assertEquals(5, countdown.seconds)
-        assertEquals(2, countdown.sleeps)
     }
 
     @Test
@@ -43,6 +42,22 @@ class DepartureCountdownTest {
         assertEquals(0, countdown.hours)
         assertEquals(0, countdown.minutes)
         assertEquals(0, countdown.seconds)
-        assertEquals(0, countdown.sleeps)
+    }
+
+    @Test
+    fun permitsOnlyTestDrivesBeforeDeparture() {
+        assertEquals(
+            TripMode.TEST,
+            tripModeAt(VACATION_DEPARTURE.toInstant().minusMillis(1))
+        )
+    }
+
+    @Test
+    fun switchesPermanentlyToRealTripAtDeparture() {
+        assertEquals(TripMode.REAL, tripModeAt(VACATION_DEPARTURE.toInstant()))
+        assertEquals(
+            TripMode.REAL,
+            tripModeAt(VACATION_DEPARTURE.toInstant().plusSeconds(1))
+        )
     }
 }

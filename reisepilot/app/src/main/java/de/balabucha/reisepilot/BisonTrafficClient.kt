@@ -114,7 +114,7 @@ internal object BisonTrafficClient {
                 connection.instanceFollowRedirects = true
                 connection.setRequestProperty("Accept", "text/html,application/xhtml+xml")
                 connection.setRequestProperty("Accept-Language", "fr,de;q=0.8")
-                connection.setRequestProperty("User-Agent", "ReisePilot/4.8 Android family travel app")
+                connection.setRequestProperty("User-Agent", "ReisePilot/4.9 Android family travel app")
                 val code = connection.responseCode
                 val stream = if (code in 200..299) connection.inputStream else connection.errorStream
                 val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()

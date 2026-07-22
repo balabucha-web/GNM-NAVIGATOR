@@ -4,6 +4,11 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -47,11 +52,18 @@ fun ReiseTheme(content: @Composable () -> Unit) {
     )
 }
 
-enum class AppTab(val title: String, val short: String) {
-    START("Start", "S"),
-    ROUTE("Route", "R"),
-    DISCOVER("Entdecken", "E"),
-    MORE("Mehr", "M")
+enum class AppTab(val title: String) {
+    START("Start"),
+    ROUTE("Route"),
+    DISCOVER("Entdecken"),
+    MORE("Mehr")
+}
+
+private fun AppTab.icon() = when (this) {
+    AppTab.START -> Icons.Filled.Home
+    AppTab.ROUTE -> Icons.Filled.Map
+    AppTab.DISCOVER -> Icons.Filled.Explore
+    AppTab.MORE -> Icons.Filled.MoreHoriz
 }
 
 @Composable
@@ -66,20 +78,10 @@ fun ReisePilotApp(activity: MainActivity, snapshot: TripSnapshot) {
                         selected = tab == item,
                         onClick = { tab = item },
                         icon = {
-                            Box(
-                                Modifier.size(27.dp).background(
-                                    if (tab == item) Blue else Color(0xFFE9EEF3),
-                                    CircleShape
-                                ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    item.short,
-                                    color = if (tab == item) Color.White else Muted,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp
-                                )
-                            }
+                            Icon(
+                                imageVector = item.icon(),
+                                contentDescription = item.title
+                            )
                         },
                         label = { Text(item.title, maxLines = 1) }
                     )
@@ -107,7 +109,9 @@ fun Page(title: String, subtitle: String, modifier: Modifier, content: LazyListS
     ) {
         item {
             Text(title, style = MaterialTheme.typography.headlineMedium)
-            Text(subtitle, color = Muted, fontSize = 13.sp)
+            if (subtitle.isNotBlank()) {
+                Text(subtitle, color = Muted, fontSize = 13.sp)
+            }
         }
         content()
         item { Spacer(Modifier.height(12.dp)) }

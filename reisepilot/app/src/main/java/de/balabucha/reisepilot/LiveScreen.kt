@@ -29,9 +29,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import java.time.Instant
-import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.min
@@ -49,6 +46,17 @@ fun LiveScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
     val tankCapacity = settings.getFloat("start_litres", 60f).toDouble().coerceAtLeast(20.0)
     val consumption = settings.getFloat("consumption", 7.4f).toDouble().coerceAtLeast(3.0)
     var chosen by rememberSaveable(snapshot.stage) { mutableStateOf(snapshot.stage) }
+    var now by remember { mutableStateOf(Instant.now()) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            now = Instant.now()
+            delay(1_000L)
+        }
+    }
+
+    val countdown = remember(now) { departureCountdown(now) }
+    val availableMode = if (snapshot.active) snapshot.tripMode else tripModeAt(now)
 
     val bisonSummary by produceState(
         initialValue = BisonTrafficSummary(),
@@ -83,14 +91,14 @@ fun LiveScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
         if (locationGranted) activity.startTrip(chosen)
     }
 
-    Page("ReisePilot", "Live-Dashboard für Route, Ankunft, Verkehr und Tank", modifier) {
-        if (!snapshot.active) item { VacationCountdownCard() }
-        item { ClockCard(snapshot) }
+    Page("Start", "", modifier) {
+        if (!countdown.started) item { VacationCountdownCard(countdown) }
         item {
             JourneyDashboardCard(
                 activity = activity,
                 snapshot = snapshot,
                 chosen = chosen,
+                availableMode = availableMode,
                 onChosen = { if (!snapshot.active) chosen = it },
                 onStart = {
                     val permissions = buildList {
@@ -145,19 +153,18 @@ fun LiveScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
         }
 
         item { FuelGaugeCard(snapshot, tankCapacity, consumption) }
-        item { NextAction(activity, snapshot) }
+        if (snapshot.active) item { NextAction(activity, snapshot) }
         snapshot.fuelSuggestion?.let { suggestion ->
             item { FuelSuggestionCard(activity, suggestion) }
         }
         item { GermanyTrafficCard(germanTraffic, chosen) }
         item { BisonTrafficCard(bisonSummary, chosen) }
-        item { AutomaticStatus(snapshot, tokenValid) }
 
         if (!snapshot.apiOk && !tokenValid) {
             item {
                 WarningCard(
-                    "Live-Verkehr noch aus",
-                    "Unter Mehr den vollständigen Mapbox-Token speichern und direkt prüfen.",
+                    "Live-Verkehr nicht eingerichtet",
+                    "Einstellungen → Karte und Live-Verkehr",
                     Light.YELLOW
                 )
             }
@@ -174,20 +181,7 @@ fun LiveScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifie
 }
 
 @Composable
-private fun VacationCountdownCard() {
-    val celebrationEnds = remember { VACATION_DEPARTURE.plusHours(12).toInstant() }
-    var now by remember { mutableStateOf(Instant.now()) }
-    if (now.isAfter(celebrationEnds)) return
-
-    LaunchedEffect(Unit) {
-        while (!now.isAfter(celebrationEnds)) {
-            now = Instant.now()
-            delay(1_000L)
-        }
-    }
-
-    val countdown = remember(now) { departureCountdown(now) }
-
+private fun VacationCountdownCard(countdown: DepartureCountdown) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -224,53 +218,26 @@ private fun VacationCountdownCard() {
 
             Column(Modifier.fillMaxWidth()) {
                 Text(
-                    "☀  EDWARD & SOFIA · URLAUBS-COUNTDOWN",
+                    "ABFAHRT IN",
                     color = Color(0xFFE7FBFF),
-                    fontSize = 11.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = .5.sp
                 )
-                Spacer(Modifier.height(7.dp))
-
-                if (countdown.started) {
-                    Text(
-                        "LOS GEHT’S!",
-                        color = Color.White,
-                        fontSize = 36.sp,
-                        fontWeight = FontWeight.Black
-                    )
-                    Text(
-                        "Canet, wir kommen!  🚙💨",
-                        color = Color(0xFFFFE49A),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                } else {
-                    Text(
-                        when {
-                            countdown.sleeps > 1 -> "Nur noch ${countdown.sleeps}-mal schlafen!"
-                            countdown.sleeps == 1 -> "Nur noch einmal schlafen!"
-                            else -> "Heute ist es endlich so weit!"
-                        },
-                        color = Color.White,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Black
-                    )
-                    Spacer(Modifier.height(13.dp))
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(7.dp)
-                    ) {
-                        CountdownUnit(countdown.days, "TAGE", Modifier.weight(1f))
-                        CountdownUnit(countdown.hours, "STD.", Modifier.weight(1f))
-                        CountdownUnit(countdown.minutes, "MIN.", Modifier.weight(1f))
-                        CountdownUnit(countdown.seconds, "SEK.", Modifier.weight(1f))
-                    }
+                Spacer(Modifier.height(13.dp))
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    CountdownUnit(countdown.days, "TAGE", Modifier.weight(1f))
+                    CountdownUnit(countdown.hours, "STD.", Modifier.weight(1f))
+                    CountdownUnit(countdown.minutes, "MIN.", Modifier.weight(1f))
+                    CountdownUnit(countdown.seconds, "SEK.", Modifier.weight(1f))
                 }
 
                 Spacer(Modifier.height(11.dp))
                 Text(
-                    "Späteste Abfahrt · Samstag, 25. Juli · 09:00 Uhr",
+                    "Samstag, 25. Juli 2026 · 09:00 Uhr",
                     color = Color(0xFFD9F4F5),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
@@ -310,31 +277,43 @@ private fun JourneyDashboardCard(
     activity: MainActivity,
     snapshot: TripSnapshot,
     chosen: Stage,
+    availableMode: TripMode,
     onChosen: (Stage) -> Unit,
     onStart: () -> Unit
 ) {
-    var confirmReset by rememberSaveable { mutableStateOf(false) }
     val origin = TripConfig.origin(chosen)
     val destination = TripConfig.destination(chosen)
-    val isCurrent = snapshot.active && snapshot.stage == chosen
-    val travelled = if (isCurrent) snapshot.distanceTravelledKm.coerceAtLeast(0.0) else 0.0
-    val remaining = if (isCurrent) snapshot.remainingKm?.toDouble() else null
+    val isCurrentStage = snapshot.stage == chosen
+    val storedTestIsExpired = !snapshot.active && snapshot.tripMode == TripMode.TEST &&
+        availableMode == TripMode.REAL
+    val hasTripData = isCurrentStage && !storedTestIsExpired && (
+        snapshot.active || snapshot.distanceTravelledKm > 0.01 ||
+            snapshot.driveMinutes > 0 || snapshot.remainingKm != null
+        )
+    val travelled = if (hasTripData) snapshot.distanceTravelledKm.coerceAtLeast(0.0) else 0.0
+    val remaining = if (hasTripData) snapshot.remainingKm?.toDouble() else null
     val total = remaining?.let { travelled + it }
     val progress = if (total != null && total > 1.0) (travelled / total).toFloat().coerceIn(0f, 1f) else 0f
+    val mode = if (snapshot.active || hasTripData) snapshot.tripMode else availableMode
 
     AppCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    if (chosen == Stage.SATURDAY) "SAMSTAG · HINREISE" else "SONNTAG · WEITERREISE",
-                    color = Blue,
+                    buildString {
+                        append(if (mode == TripMode.TEST) "TESTFAHRT" else "ECHTE REISE")
+                        append(if (chosen == Stage.SATURDAY) " · SAMSTAG" else " · SONNTAG")
+                    },
+                    color = if (mode == TripMode.TEST) Yellow else Green,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     when {
                         snapshot.active && snapshot.paused -> "Pause aktiv"
-                        snapshot.active -> "Tracking aktiv"
+                        snapshot.active && mode == TripMode.TEST -> "Testaufzeichnung läuft"
+                        snapshot.active -> "Reiseaufzeichnung läuft"
+                        mode == TripMode.TEST -> "Testfahrt bereit"
                         else -> "Reise bereit"
                     },
                     style = MaterialTheme.typography.headlineMedium
@@ -367,86 +346,59 @@ private fun JourneyDashboardCard(
         Spacer(Modifier.height(7.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
-                if (isCurrent) "${"%.0f".format(travelled)} km gefahren" else "Start noch nicht erfasst",
+                if (hasTripData) "${"%.0f".format(travelled)} km gefahren" else "Noch nicht gestartet",
                 color = Muted,
                 fontSize = 12.sp
             )
             Text(
-                if (isCurrent && remaining != null) "${(progress * 100).roundToInt()} % · ${remaining.roundToInt()} km offen" else "0 %",
+                if (hasTripData && remaining != null) "${(progress * 100).roundToInt()} % · ${remaining.roundToInt()} km offen" else "0 %",
                 color = Blue,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold
             )
         }
 
-        Spacer(Modifier.height(12.dp))
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            Stage.entries.forEachIndexed { index, stage ->
-                SegmentedButton(
-                    selected = chosen == stage,
-                    onClick = { onChosen(stage) },
-                    shape = SegmentedButtonDefaults.itemShape(index, Stage.entries.size),
-                    label = { Text(if (stage == Stage.SATURDAY) "Samstag" else "Sonntag") }
-                )
+        if (!snapshot.active) {
+            Spacer(Modifier.height(12.dp))
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                Stage.entries.forEachIndexed { index, stage ->
+                    SegmentedButton(
+                        selected = chosen == stage,
+                        onClick = { onChosen(stage) },
+                        shape = SegmentedButtonDefaults.itemShape(index, Stage.entries.size),
+                        label = { Text(if (stage == Stage.SATURDAY) "Samstag" else "Sonntag") }
+                    )
+                }
             }
         }
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-            Button(
-                onClick = onStart,
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(containerColor = Green),
-                shape = RoundedCornerShape(13.dp)
-            ) { Text(if (snapshot.active) "Neu starten" else "Fahrt starten") }
+            if (!snapshot.active) {
+                Button(
+                    onClick = onStart,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (availableMode == TripMode.TEST) Yellow else Green
+                    ),
+                    shape = RoundedCornerShape(13.dp)
+                ) {
+                    Text(if (availableMode == TripMode.TEST) "Testfahrt starten" else "Reise starten")
+                }
+            }
             OutlinedButton(
                 onClick = { activity.openMaps(chosen) },
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(13.dp)
-            ) { Text("Google Maps") }
+            ) { Text("Route in Google Maps") }
         }
         if (snapshot.active) {
-            TextButton(
-                onClick = { activity.serviceAction(TripTrackingService.ACTION_STOP) },
-                modifier = Modifier.fillMaxWidth()
-            ) { Text("Tracking stoppen", color = Red) }
-        }
-        if (
-            snapshot.active || snapshot.distanceTravelledKm > 0.01 ||
-            snapshot.driveMinutes > 0 || snapshot.remainingKm != null
-        ) {
             OutlinedButton(
-                onClick = { confirmReset = true },
-                modifier = Modifier.fillMaxWidth().testTag("reset-trip"),
+                onClick = { activity.serviceAction(TripTrackingService.ACTION_STOP) },
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Red),
                 shape = RoundedCornerShape(13.dp)
-            ) { Text("Fahrt vollständig zurücksetzen") }
+            ) { Text("Aufzeichnung beenden") }
         }
-    }
-
-    if (confirmReset) {
-        AlertDialog(
-            onDismissRequest = { confirmReset = false },
-            title = { Text("Testfahrt zurücksetzen?") },
-            text = {
-                Text(
-                    "Die erfasste Strecke, Fahrzeit, Route und Tankberechnung dieser Fahrt werden gelöscht. " +
-                        "Packliste, Ziele, Einstellungen und gemerkte Parkplätze bleiben erhalten."
-                )
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmReset = false }) { Text("Abbrechen") }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        confirmReset = false
-                        activity.serviceAction(TripTrackingService.ACTION_RESET)
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Red),
-                    modifier = Modifier.testTag("confirm-reset-trip")
-                ) { Text("Ja, auf 0 setzen") }
-            }
-        )
     }
 }
 
@@ -461,7 +413,6 @@ private fun FuelGaugeCard(snapshot: TripSnapshot, capacity: Double, consumption:
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Geschätzter Tankinhalt", style = MaterialTheme.typography.titleLarge)
-                Text("Berechnet aus Starttank, GPS-Strecke und Verbrauch", color = Muted, fontSize = 12.sp)
             }
             Text("ca. $rangeKm km", color = Blue, fontWeight = FontWeight.Bold)
         }
@@ -572,11 +523,6 @@ private fun GermanyTrafficCard(summary: GermanTrafficSummary, stage: Stage) {
                 StatusLine("${event.road} · ${event.title}", event.detail, light)
             }
         }
-        Text(
-            "Aktualisierung alle fünf Minuten. Mapbox berechnet zusätzlich die konkrete Verzögerung und Ankunftszeit auf deiner Route.",
-            color = Muted,
-            fontSize = 12.sp
-        )
     }
 }
 
@@ -607,47 +553,6 @@ private fun BisonTrafficCard(summary: BisonTrafficSummary, stage: Stage) {
                 StatusLine("${event.road} · ${event.title}", event.detail, light)
             }
         }
-        Text("Automatische Aktualisierung alle fünf Minuten. Mapbox bleibt zusätzlich für ETA und Verkehr auf der konkreten Route aktiv.", color = Muted, fontSize = 12.sp)
-    }
-}
-
-@Composable
-private fun ClockCard(snapshot: TripSnapshot) {
-    var now by remember { mutableStateOf(ZonedDateTime.now()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            now = ZonedDateTime.now()
-            delay(1000)
-        }
-    }
-    val overall = when {
-        !snapshot.active -> Light.GREY
-        snapshot.scheduleLight == Light.RED || snapshot.pauseLight == Light.RED || snapshot.fuelLight == Light.RED -> Light.RED
-        snapshot.scheduleLight == Light.YELLOW || snapshot.pauseLight == Light.YELLOW || snapshot.fuelLight == Light.YELLOW -> Light.YELLOW
-        else -> Light.GREEN
-    }
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Navy),
-        shape = RoundedCornerShape(22.dp)
-    ) {
-        Row(
-            Modifier.fillMaxWidth().padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    now.format(DateTimeFormatter.ofPattern("HH:mm:ss")),
-                    color = Color.White,
-                    fontSize = 34.sp,
-                    fontWeight = FontWeight.Black
-                )
-                Text(
-                    now.format(DateTimeFormatter.ofPattern("EEEE, dd.MM.yyyy", Locale.GERMAN)),
-                    color = Color(0xFFCFD8E4)
-                )
-            }
-            Lamp(overall, 48.dp)
-        }
     }
 }
 
@@ -666,20 +571,20 @@ private fun NextAction(activity: MainActivity, s: TripSnapshot) {
 
         val fuelAction = s.fuelSuggestion != null && s.nextTitle.contains("Tank", true)
         val action = when {
-            s.nextTitle.contains("anrufen", true) -> "Anrufen"
+            s.nextTitle.contains("anrufen", true) -> "Unterkunft anrufen"
             s.nextTitle.contains("Pause", true) -> "Pause erledigt"
-            fuelAction -> "Zur Tankstelle"
-            else -> "Navigation öffnen"
+            fuelAction -> "Zur Tankstelle navigieren"
+            else -> "Route in Google Maps"
         }
 
         Button(
             onClick = {
                 when (action) {
-                    "Anrufen" -> activity.dial(
+                    "Unterkunft anrufen" -> activity.dial(
                         if (s.stage == Stage.SUNDAY) "+33468732779" else "+33381901069"
                     )
                     "Pause erledigt" -> activity.serviceAction(TripTrackingService.ACTION_BREAK_DONE)
-                    "Zur Tankstelle" -> s.fuelSuggestion?.let {
+                    "Zur Tankstelle navigieren" -> s.fuelSuggestion?.let {
                         activity.openPointRoute(it.point, it.name)
                     }
                     else -> activity.openMaps(s.stage)
@@ -718,53 +623,13 @@ private fun FuelSuggestionCard(activity: MainActivity, fuel: FuelSuggestion) {
                 onClick = { activity.openPointRoute(fuel.point, fuel.name) },
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(13.dp)
-            ) { Text("Route") }
+            ) { Text("Navigieren") }
             OutlinedButton(
                 onClick = { activity.serviceAction(TripTrackingService.ACTION_REFUEL_FULL) },
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(13.dp)
             ) { Text("Vollgetankt") }
         }
-    }
-}
-
-@Composable
-private fun AutomaticStatus(s: TripSnapshot, tokenValid: Boolean) {
-    AppCard {
-        Text("Systemstatus", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
-        StatusLine("Ankunft", lightText(s.scheduleLight), s.scheduleLight)
-        StatusLine(
-            "Verkehr",
-            s.trafficDelayMin?.let { if (it == 0) "normal" else "+$it Min." } ?: "unbekannt",
-            trafficLight(s.trafficDelayMin)
-        )
-        StatusLine(
-            "Pause",
-            if (s.driveMinutes < 135) "im Rahmen" else minuteText(s.driveMinutes),
-            s.pauseLight
-        )
-        StatusLine(
-            "Tankplanung",
-            s.fuelSuggestion?.let {
-                val price = it.pricePerLitre?.let { p -> "${"%.3f".format(p)} €/l · " }.orEmpty()
-                "$price${it.name} · ${"%.1f".format(it.distanceAheadKm)} km voraus"
-            } ?: if (s.active) "wird automatisch entlang der Route geprüft" else "startet mit dem Tracking",
-            if (s.fuelSuggestion != null) Light.GREEN else Light.GREY
-        )
-        StatusLine(
-            "Live-API",
-            when {
-                s.apiOk -> "Mapbox-Verkehr aktiv"
-                tokenValid -> "Token geprüft · Fahrt starten"
-                else -> s.apiMessage
-            },
-            when {
-                s.apiOk -> Light.GREEN
-                tokenValid -> Light.GREEN
-                else -> Light.YELLOW
-            }
-        )
     }
 }
 

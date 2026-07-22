@@ -13,6 +13,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -128,7 +136,7 @@ fun PackingListScreen(
                 shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.testTag("packing-new-item")
             ) {
-                Text("＋", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Icon(Icons.Filled.Add, contentDescription = null)
                 Spacer(Modifier.width(5.dp))
                 Text(if (state.categories.isEmpty()) "Kategorie anlegen" else "Neuer Eintrag")
             }
@@ -252,7 +260,9 @@ fun PackingListScreen(
                                 .testTag("packing-add:${category.id}"),
                             shape = RoundedCornerShape(14.dp)
                         ) {
-                            Text("＋ Gegenstand hinzufügen", fontWeight = FontWeight.Bold)
+                            Icon(Icons.Filled.Add, contentDescription = null)
+                            Spacer(Modifier.width(6.dp))
+                            Text("Gegenstand hinzufügen", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -455,7 +465,7 @@ private fun PackingProgressHeader(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack, modifier = Modifier.size(46.dp)) {
-                    Text("‹", color = Navy, fontSize = 32.sp, fontWeight = FontWeight.Light)
+                    Icon(Icons.Filled.ArrowBack, contentDescription = "Zurück zu Mehr", tint = Navy)
                 }
                 Column(Modifier.weight(1f)) {
                     Text("Packliste", fontWeight = FontWeight.Black, fontSize = 21.sp)
@@ -470,7 +480,9 @@ private fun PackingProgressHeader(
                     IconButton(
                         onClick = { onMenuChange(true) },
                         modifier = Modifier.size(46.dp).testTag("packing-more-menu")
-                    ) { Text("⋮", fontSize = 28.sp, color = Navy) }
+                    ) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = "Packliste verwalten", tint = Navy)
+                    }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { onMenuChange(false) }) {
                         DropdownMenuItem(
                             text = { Text("Kategorien verwalten") },
@@ -545,7 +557,9 @@ private fun PackingSearchAndFilters(
             singleLine = true,
             trailingIcon = {
                 if (query.isNotBlank()) {
-                    TextButton(onClick = { onQueryChange("") }) { Text("×", fontSize = 22.sp) }
+                    IconButton(onClick = { onQueryChange("") }) {
+                        Icon(Icons.Filled.Close, contentDescription = "Suche löschen")
+                    }
                 }
             },
             modifier = Modifier.fillMaxWidth().testTag("packing-search")
@@ -575,7 +589,7 @@ private fun PackingSearchAndFilters(
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(Modifier.width(4.dp))
-                    Text("⌄")
+                    Icon(Icons.Filled.ExpandMore, contentDescription = null)
                 }
                 DropdownMenu(expanded = categoryMenu, onDismissRequest = { categoryMenu = false }) {
                     DropdownMenuItem(
@@ -630,7 +644,11 @@ private fun PackingCategoryHeader(
                     onClick = onExpandedChange,
                     modifier = Modifier.size(46.dp).testTag("packing-collapse:${category.id}")
                 ) {
-                    Text(if (expanded) "⌃" else "⌄", color = Blue, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    Icon(
+                        if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                        contentDescription = if (expanded) "Kategorie schließen" else "Kategorie öffnen",
+                        tint = Blue
+                    )
                 }
                 Column(
                     Modifier.weight(1f).clickable(onClick = onExpandedChange).padding(vertical = 6.dp)
@@ -648,7 +666,7 @@ private fun PackingCategoryHeader(
                 )
                 Box {
                     IconButton(onClick = { menu = true }, modifier = Modifier.size(46.dp)) {
-                        Text("⋮", fontSize = 25.sp)
+                        Icon(Icons.Filled.MoreVert, contentDescription = "Kategorie bearbeiten")
                     }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                         DropdownMenuItem(text = { Text("Bearbeiten") }, onClick = {
@@ -748,7 +766,7 @@ private fun PackingItemRow(
                 IconButton(
                     onClick = { menu = true },
                     modifier = Modifier.size(46.dp).testTag("packing-item-menu:${item.id}")
-                ) { Text("⋮", fontSize = 24.sp) }
+                ) { Icon(Icons.Filled.MoreVert, contentDescription = "Eintrag bearbeiten") }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(text = { Text("Bearbeiten") }, onClick = {
                         menu = false
@@ -815,7 +833,7 @@ private fun PackingDragHandle(testTag: String, onMove: (Int) -> Unit) {
         contentColor = Muted
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text("≡", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Icon(Icons.Filled.DragHandle, contentDescription = "Zum Sortieren halten")
         }
     }
 }
@@ -899,7 +917,7 @@ private fun PackingItemEditorDialog(
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(selectedCategory?.name ?: "Kategorie wählen", modifier = Modifier.weight(1f))
-                            Text("⌄")
+                            Icon(Icons.Filled.ExpandMore, contentDescription = null)
                         }
                         DropdownMenu(expanded = categoryMenu, onDismissRequest = { categoryMenu = false }) {
                             categories.forEach { category ->
@@ -922,7 +940,7 @@ private fun PackingItemEditorDialog(
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(person?.displayName ?: "Keine Zuordnung", modifier = Modifier.weight(1f))
-                            Text("⌄")
+                            Icon(Icons.Filled.ExpandMore, contentDescription = null)
                         }
                         DropdownMenu(expanded = personMenu, onDismissRequest = { personMenu = false }) {
                             DropdownMenuItem(text = { Text("Keine Zuordnung") }, onClick = {
@@ -1102,10 +1120,9 @@ private fun PackingCategoryManagerDialog(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Kategorien verwalten", style = MaterialTheme.typography.headlineSmall)
-                        Text("Ziehen, umsortieren, umbenennen, ausblenden oder löschen", color = Muted, fontSize = 12.sp)
                     }
                     IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
-                        Text("×", fontSize = 28.sp)
+                        Icon(Icons.Filled.Close, contentDescription = "Schließen")
                     }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -1148,7 +1165,7 @@ private fun PackingCategoryManagerDialog(
                                 var menu by remember(category.id) { mutableStateOf(false) }
                                 Box {
                                     IconButton(onClick = { menu = true }, modifier = Modifier.size(45.dp)) {
-                                        Text("⋮", fontSize = 24.sp)
+                                        Icon(Icons.Filled.MoreVert, contentDescription = "Kategorie bearbeiten")
                                     }
                                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                                         DropdownMenuItem(text = { Text("Bearbeiten") }, onClick = {
@@ -1178,7 +1195,11 @@ private fun PackingCategoryManagerDialog(
                     onClick = onAdd,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("packing-new-category"),
                     shape = RoundedCornerShape(14.dp)
-                ) { Text("＋ Eigene Kategorie erstellen") }
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Eigene Kategorie erstellen")
+                }
             }
         }
     }

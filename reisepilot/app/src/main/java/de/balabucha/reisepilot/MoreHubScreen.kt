@@ -31,19 +31,16 @@ fun MoreHubScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modi
 
     if (page == MoreHubPage.TECHNICAL) {
         BackHandler { page = MoreHubPage.HOME }
-        Box(modifier.fillMaxSize()) {
-            MoreScreen(activity, snapshot, Modifier.fillMaxSize())
-            SmallFloatingActionButton(
-                onClick = { page = MoreHubPage.HOME },
-                containerColor = Navy,
-                contentColor = androidx.compose.ui.graphics.Color.White,
-                modifier = Modifier.align(Alignment.TopEnd).padding(top = 18.dp, end = 18.dp)
-            ) { Text("‹", fontSize = 26.sp) }
-        }
+        MoreScreen(
+            activity = activity,
+            snapshot = snapshot,
+            modifier = modifier,
+            onBack = { page = MoreHubPage.HOME }
+        )
         return
     }
 
-    Page("Mehr", "Reiseplan, Buchungen und Einstellungen", modifier) {
+    Page("Mehr", "", modifier) {
         item { JourneyOverview(activity, snapshot.stage) }
         item { BookingOverview(activity) }
         item {
@@ -58,11 +55,6 @@ fun MoreHubScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modi
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text("Packliste", style = MaterialTheme.typography.titleLarge)
-                        Text(
-                            "Abhaken, ergänzen, bearbeiten, sortieren und dauerhaft speichern",
-                            color = Muted,
-                            fontSize = 13.sp
-                        )
                     }
                 }
                 val packing = remember { PackingRepository(activity.applicationContext) }.state
@@ -112,18 +104,17 @@ fun MoreHubScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modi
                     onClick = { page = MoreHubPage.TECHNICAL },
                     modifier = Modifier.fillMaxWidth().testTag("technical-settings-button"),
                     shape = RoundedCornerShape(13.dp)
-                ) { Text("Technische Einstellungen") }
+                ) { Text("Einstellungen öffnen") }
             }
         }
 
         item {
             AppCard {
                 Text("Tankstellen & Preise", style = MaterialTheme.typography.titleLarge)
-                Text("Fahrt starten und Standort erlauben. ReisePilot prüft dann automatisch günstige Dieselstationen entlang der geladenen Route.", color = Muted)
                 Spacer(Modifier.height(8.dp))
                 StatusLine("Frankreich", "offizielle Dieselpreise ohne API-Key", Light.GREEN)
                 StatusLine("Spanien", "offizielle Dieselpreise ohne API-Key", Light.GREEN)
-                StatusLine("Deutschland", "Live-Preise mit Tankerkönig-Key unter Technische Einstellungen", Light.YELLOW)
+                StatusLine("Deutschland", "Live-Preise mit Tankerkönig-Key unter Einstellungen", Light.YELLOW)
                 snapshot.fuelSuggestion?.let { fuel ->
                     HorizontalDivider(Modifier.padding(vertical = 8.dp))
                     Text(fuel.name, fontWeight = FontWeight.Bold)
@@ -136,27 +127,25 @@ fun MoreHubScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modi
                 }
                 Spacer(Modifier.height(10.dp))
                 Button(onClick = { activity.serviceAction(TripTrackingService.ACTION_RELOAD_CONFIG) }, enabled = snapshot.active, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)) {
-                    Text(if (snapshot.active) "Tankstellen jetzt neu suchen" else "Zuerst Fahrt starten")
+                    Text(if (snapshot.active) "Tankstellen neu suchen" else "Suche nach Fahrtstart verfügbar")
                 }
-                Text("Die automatische Suche beginnt spätestens nach längerer Fahrt oder bei sinkendem Tankstand und aktualisiert sich etwa alle zwölf Minuten.", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
             }
         }
         item {
             AppCard {
                 Text("Reise-Apps", style = MaterialTheme.typography.titleLarge)
-                Text("Google Maps für Navigation, Bison Futé ergänzend für Frankreich.", color = Muted)
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                     OutlinedButton(
                         onClick = { activity.openPackage("com.google.android.apps.maps") },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(13.dp)
-                    ) { Text("Maps") }
+                    ) { Text("Google Maps öffnen") }
                     OutlinedButton(
                         onClick = { activity.openBisonFute() },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(13.dp)
-                    ) { Text("Bison Futé") }
+                    ) { Text("Bison Futé öffnen") }
                 }
             }
         }
@@ -176,7 +165,7 @@ private fun JourneyOverview(activity: MainActivity, stage: Stage) {
         Text("Reiseplan", style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(8.dp))
         Text("Samstag · Schwerin → Montbéliard", fontWeight = FontWeight.Bold)
-        Text("Abfahrt 07:30–08:00 · Pausen automatisch · Hotel am Abend", color = Muted, fontSize = 13.sp)
+        Text("Abfahrt 09:00 · Pausen automatisch · Hotel am Abend", color = Muted, fontSize = 13.sp)
         Spacer(Modifier.height(10.dp))
         Text("Sonntag · Montbéliard → Canet", fontWeight = FontWeight.Bold)
         Text("Frühstück 07:00 · Abfahrt 07:35–07:45 · Canet 17:00–19:00", color = Muted, fontSize = 13.sp)
@@ -186,12 +175,12 @@ private fun JourneyOverview(activity: MainActivity, stage: Stage) {
                 onClick = { activity.openMaps(Stage.SATURDAY) },
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(13.dp)
-            ) { Text("Samstag") }
+            ) { Text("Route Samstag") }
             OutlinedButton(
                 onClick = { activity.openMaps(Stage.SUNDAY) },
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(13.dp)
-            ) { Text("Sonntag") }
+            ) { Text("Route Sonntag") }
         }
     }
 }
@@ -230,7 +219,7 @@ private fun BookingLine(
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(onClick = call) { Text("Anrufen") }
-            TextButton(onClick = map) { Text("Karte") }
+            TextButton(onClick = map) { Text("Google Maps") }
         }
     }
 }

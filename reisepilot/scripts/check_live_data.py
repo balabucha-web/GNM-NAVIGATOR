@@ -12,7 +12,7 @@ import urllib.request
 from pathlib import Path
 
 
-UA = "ReisePilot/4.8 live source audit"
+UA = "ReisePilot/4.9 live source audit"
 OFFLINE_PHOTOS = Path(__file__).resolve().parents[1] / "app/src/main/assets/destination_photos/index.json"
 
 
