@@ -106,6 +106,8 @@ class PackingListTest {
         val places = TravelRegion.entries.flatMap(DestinationCatalog::forRegion)
         assertEquals(93, places.size)
         places.forEach { place ->
+            assertTrue("Missing curated media identity for ${place.title}", DestinationMediaCatalog.hasExplicitIdentity(place))
+            assertTrue("Empty media identity for ${place.title}", DestinationMediaCatalog.identities(place).all { it.length >= 4 })
             val queries = WikiImageResolver.exactQueriesForTest(place)
             assertTrue("Too few queries for ${place.title}: $queries", queries.size >= 2)
             assertTrue("Original image query missing for ${place.title}", place.imageQuery in queries)

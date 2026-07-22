@@ -1,4 +1,4 @@
-name: Build ReisePilot 4.5 APK
+name: Build ReisePilot 4.6 APK
 
 on:
   push:
@@ -83,7 +83,9 @@ jobs:
               'TripTrackingService.kt': ['sessionId != requestSession', 'val newlyCrossed = crossed.filter'],
               'NativeTripMap.kt': ['tiles.openfreemap.org/styles/liberty', 'fun dispose()', '€/l'],
               'LiveScreen.kt': ['Geschätzter Tankinhalt', 'Frankreich-Verkehr live', 'Deutschland-Verkehr live', 'Ankunftszeit', 'LinearProgressIndicator'],
-              'WikiImage.kt': ['travel_photos_v45', 'resolveGallery', 'commonsGeoCandidates', 'commonsCategoryCandidates'],
+              'WikiImage.kt': ['travel_photos_v46', 'resolveGallery', 'wikidataCandidates', 'commonsGeoCandidates', 'commonsCategoryCandidates'],
+              'DestinationMedia.kt': ['DestinationMediaCatalog', 'Temple Expiatori de la Sagrada Família'],
+              'Parking.kt': ['ParkingResolver', 'ParkingSelectionStore', 'BSM Moll de la Fusta', 'overpass-api.de'],
               'PackingModels.kt': ['packing-v1-cat-16-luggage', 'DefaultPackingList'],
               'PackingRepository.kt': ['INITIALIZED_KEY', 'restoreMissingDefaults', 'resetChecks'],
               'PackingScreen.kt': ['Neuer Eintrag', 'Kategorien verwalten', 'Rückgängig'],
@@ -95,9 +97,9 @@ jobs:
               for marker in markers:
                   assert marker in text, f'{name}: missing {marker}'
           version = Path('app/build.gradle.kts').read_text()
-          assert 'versionName = "4.5"' in version
-          assert 'versionCode = 17' in version
-          print('PASS: ReisePilot 4.5 release guards present')
+          assert 'versionName = "4.6"' in version
+          assert 'versionCode = 18' in version
+          print('PASS: ReisePilot 4.6 release guards present')
           PY
       - name: Check Wikimedia image service
         run: python3 scripts/check_wikimedia_images.py
@@ -122,21 +124,21 @@ jobs:
           code=${PIPESTATUS[0]}
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           if [ "$code" -eq 0 ]; then
-            sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/ReisePilot-Live-v4.5.sha256
+            sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/ReisePilot-Live-v4.6.sha256
           fi
           exit 0
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-v4.5-build-log
+          name: ReisePilot-v4.6-build-log
           path: reisepilot/build.log
           if-no-files-found: warn
       - name: Upload test and lint reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-v4.5-reports
+          name: ReisePilot-v4.6-reports
           path: |
             reisepilot/app/build/reports/tests/testDebugUnitTest
             reisepilot/app/build/reports/lint-results-debug.html
@@ -145,10 +147,10 @@ jobs:
         if: steps.build.outputs.exit_code == '0'
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-Live-v4.5-APK
+          name: ReisePilot-Live-v4.6-APK
           path: |
             reisepilot/app/build/outputs/apk/debug/app-debug.apk
-            reisepilot/app/build/outputs/apk/debug/ReisePilot-Live-v4.5.sha256
+            reisepilot/app/build/outputs/apk/debug/ReisePilot-Live-v4.6.sha256
           if-no-files-found: error
       - name: Fail when validation failed
         if: steps.build.outputs.exit_code != '0'

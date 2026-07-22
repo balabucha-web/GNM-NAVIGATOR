@@ -107,6 +107,20 @@ class ReisePilotUserFlowTest {
         WikiImageResolver.debugGalleryOverride = { place, limit ->
             if (place.title == selectedPlace.title) fixturePhotos.take(limit) else emptyList()
         }
+        val parkingFixture = ParkingSpot(
+            id = "test:parking:collioure",
+            name = "Parking du Cap Dourats",
+            point = GeoPoint(42.5261364, 3.0689640),
+            kind = ParkingKind.SURFACE,
+            distanceToDestinationM = 1_160,
+            fee = ParkingFee.PAID,
+            capacity = 230,
+            recommended = true,
+            note = "Testempfehlung"
+        )
+        ParkingResolver.debugOverride = {
+            ParkingSearchResult(listOf(parkingFixture), System.currentTimeMillis())
+        }
 
         val cardTag = "destination-card:${selectedPlace.region.name}:${selectedPlace.title}"
         findTagByScrolling(cardTag)
@@ -121,7 +135,19 @@ class ReisePilotUserFlowTest {
         }
         compose.onNodeWithContentDescription("Collioure · Foto 1").assertExists()
         compose.onNodeWithText("1 / 3").assertExists()
+        compose.onNodeWithTag("parking-section", useUnmergedTree = true).performScrollTo()
+        compose.onNodeWithText("Parking du Cap Dourats").assertIsDisplayed()
+        compose.onNodeWithTag("parking-save:${parkingFixture.id}", useUnmergedTree = true).performClick()
+        compose.runOnIdle {
+            check(ParkingSelectionStore.selectedFor(compose.activity, selectedPlace)?.spot?.id == parkingFixture.id)
+        }
+        compose.onNodeWithText("Von Karte entfernen").assertIsDisplayed()
+        compose.onNodeWithTag("parking-save:${parkingFixture.id}", useUnmergedTree = true).performClick()
+        compose.runOnIdle {
+            check(ParkingSelectionStore.selectedFor(compose.activity, selectedPlace) == null)
+        }
         WikiImageResolver.debugGalleryOverride = null
+        ParkingResolver.debugOverride = null
         clickControl("Zurück zur Liste")
         pageList("Entdecken").assertExists()
         compose.onNodeWithTag(cardTag, useUnmergedTree = true).assertIsDisplayed()

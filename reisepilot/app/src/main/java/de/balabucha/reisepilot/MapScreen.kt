@@ -26,6 +26,8 @@ fun MapScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifier
     val tokenValid = mapboxTokenLooksValid(token)
     var stage by rememberSaveable { mutableStateOf(snapshot.stage) }
     var mapInstance by rememberSaveable { mutableIntStateOf(0) }
+    var parkingRevision by rememberSaveable { mutableIntStateOf(0) }
+    val savedParkings = remember(parkingRevision) { ParkingSelectionStore.all(activity.applicationContext) }
 
     val useLiveRoute = snapshot.active && stage == snapshot.stage && snapshot.routeGeoJson.isNotBlank()
     val preview by produceState(
@@ -108,6 +110,7 @@ fun MapScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifier
                     NativeTripMap(
                         snapshot = displaySnapshot,
                         previewRoute = preview.route,
+                        parkings = savedParkings,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -131,6 +134,7 @@ fun MapScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifier
                 StatusLine("Gelb", "Mautstelle", Light.YELLOW)
                 StatusLine("Lila", "geplanter Tankstopp", Light.GREY)
                 StatusLine("Großes Grün", "aktuell empfohlene Tankstelle", Light.GREEN)
+                StatusLine("Türkis P", "gemerkter Parkplatz", Light.GREY)
                 val tolls = displaySnapshot.tolls.ifEmpty { preview.route?.tolls.orEmpty() }
                 if (tolls.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
@@ -141,6 +145,32 @@ fun MapScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifier
                 Text("Geplante Tankpunkte", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                 TripConfig.fuelStops(stage).forEach { Text("• ${it.name}", color = Muted, style = MaterialTheme.typography.bodySmall) }
                 displaySnapshot.fuelSuggestion?.let { Text("• Empfohlen: ${it.name}", color = Green, style = MaterialTheme.typography.bodySmall) }
+                if (savedParkings.isNotEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    Text("Gemerkte Parkplätze", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                    savedParkings.forEach { saved ->
+                        Row(
+                            Modifier.fillMaxWidth().padding(top = 6.dp),
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(saved.spot.name, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
+                                Text(saved.placeTitle, color = Muted, style = MaterialTheme.typography.bodySmall)
+                            }
+                            TextButton(onClick = { activity.openPointRoute(saved.spot.point, saved.spot.name) }) {
+                                Text("Route")
+                            }
+                            TextButton(onClick = {
+                                val place = DestinationCatalog.places.firstOrNull {
+                                    ParkingSelectionStore.placeKey(it) == saved.placeKey
+                                }
+                                if (place != null) ParkingSelectionStore.remove(activity.applicationContext, place)
+                                parkingRevision++
+                                mapInstance++
+                            }) { Text("Entfernen") }
+                        }
+                    }
+                }
                 Text(
                     "Die Basiskarte läuft nativ. Google Maps bleibt für die eigentliche Navigation zuständig.",
                     color = Muted,

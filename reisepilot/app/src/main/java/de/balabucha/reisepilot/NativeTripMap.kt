@@ -39,6 +39,7 @@ private data class MapMarker(val point: GeoPoint, val label: String)
 fun NativeTripMap(
     snapshot: TripSnapshot,
     previewRoute: RouteResult?,
+    parkings: List<SavedParking> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -57,7 +58,7 @@ fun NativeTripMap(
 
     AndroidView(
         factory = { controller.mapView },
-        update = { controller.update(snapshot, previewRoute) },
+        update = { controller.update(snapshot, previewRoute, parkings) },
         modifier = modifier
     )
 }
@@ -68,6 +69,7 @@ private class NativeMapController(context: Context) {
     private var style: Style? = null
     private var latestSnapshot = TripSnapshot()
     private var latestPreview: RouteResult? = null
+    private var latestParkings: List<SavedParking> = emptyList()
     private var lastCameraKey = ""
     private var started = false
     private var resumed = false
@@ -162,10 +164,11 @@ private class NativeMapController(context: Context) {
         mapView.onDestroy()
     }
 
-    fun update(snapshot: TripSnapshot, preview: RouteResult?) {
+    fun update(snapshot: TripSnapshot, preview: RouteResult?, parkings: List<SavedParking>) {
         if (destroyed) return
         latestSnapshot = snapshot
         latestPreview = preview
+        latestParkings = parkings
         render()
     }
 
@@ -231,6 +234,13 @@ private class NativeMapController(context: Context) {
             Color.rgb(0, 158, 96), 12f,
             textSize = 14f,
             allowOverlap = true
+        )
+        upsertLabeledPoints(
+            style, "point-parkings",
+            latestParkings.map { saved -> MapMarker(saved.spot.point, "P · ${saved.spot.name}") },
+            Color.rgb(0, 132, 137), 9f,
+            textSize = 12f,
+            allowOverlap = false
         )
         val origin = TripConfig.origin(latestSnapshot.stage)
         val destination = TripConfig.destination(latestSnapshot.stage)

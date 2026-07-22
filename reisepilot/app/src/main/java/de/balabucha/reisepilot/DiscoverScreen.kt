@@ -55,7 +55,7 @@ fun DiscoverScreen(activity: MainActivity, snapshot: TripSnapshot, modifier: Mod
 
     Page(
         title = "Entdecken",
-        subtitle = "Mehr Ausflugsziele · Vorschaubilder und Route direkt verfügbar",
+        subtitle = "Ausflugsziele · passende Bilder, Parkplätze und Route",
         modifier = modifier
     ) {
         item {
@@ -341,7 +341,7 @@ private fun PlaceDetailSheet(
         }
 
         val fullGallery = runCatching {
-            WikiImageResolver.resolveGallery(context, place, 5)
+            WikiImageResolver.resolveGallery(context, place, 8)
         }.getOrDefault(firstPhoto)
         if (fullGallery.isNotEmpty()) value = fullGallery
         imageFinished = true
@@ -438,6 +438,8 @@ private fun PlaceDetailSheet(
                     WarningCard("Praktischer Tipp", place.tip, Light.GREEN)
                 }
                 Spacer(Modifier.height(14.dp))
+                ParkingSection(activity = activity, place = place)
+                Spacer(Modifier.height(14.dp))
                 Button(
                     onClick = {
                         activity.openPointRoute(place.point, place.title)
@@ -452,6 +454,179 @@ private fun PlaceDetailSheet(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp)
                 ) { Text("Zurück zur Liste") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ParkingSection(activity: MainActivity, place: TravelPlace) {
+    val context = LocalContext.current
+    var refreshKey by remember(place.region, place.title) { mutableIntStateOf(0) }
+    var loading by remember(place.region, place.title) { mutableStateOf(true) }
+    var selectedId by remember(place.region, place.title) {
+        mutableStateOf(ParkingSelectionStore.selectedFor(context, place)?.spot?.id)
+    }
+    val curated = remember(place.region, place.title) { ParkingCatalog.recommendations(place) }
+    val result by produceState(
+        initialValue = ParkingSearchResult(curated, 0L),
+        place.region,
+        place.title,
+        refreshKey
+    ) {
+        loading = true
+        value = runCatching {
+            ParkingResolver.nearby(context, place, forceRefresh = refreshKey > 0)
+        }.getOrElse {
+            ParkingSearchResult(curated, System.currentTimeMillis(), message = "Parkdaten konnten nicht geladen werden")
+        }
+        loading = false
+    }
+
+    Column(Modifier.fillMaxWidth().testTag("parking-section")) {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Parken", style = MaterialTheme.typography.titleLarge)
+                Text("Nahe Parkplätze statt nur Route zum eigentlichen Ziel", color = Muted, fontSize = 12.sp)
+            }
+            TextButton(onClick = { refreshKey++ }, enabled = !loading) {
+                Text(if (loading) "Lädt …" else "Aktualisieren")
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        WarningCard("Parkstrategie", ParkingCatalog.advice(place), Light.YELLOW)
+        Spacer(Modifier.height(10.dp))
+
+        if (loading && result.spots.isEmpty()) {
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(10.dp))
+                Text("Parkplätze in der Nähe werden geladen …", color = Muted)
+            }
+        }
+
+        result.spots.forEach { spot ->
+            ParkingSpotCard(
+                spot = spot,
+                selected = selectedId == spot.id,
+                onNavigate = { activity.openPointRoute(spot.point, spot.name) },
+                onToggleSaved = {
+                    if (selectedId == spot.id) {
+                        ParkingSelectionStore.remove(context, place)
+                        selectedId = null
+                    } else {
+                        ParkingSelectionStore.save(context, place, spot)
+                        selectedId = spot.id
+                    }
+                }
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+
+        if (result.spots.isEmpty() && !loading) {
+            WarningCard(
+                "Keine sichere Empfehlung gefunden",
+                "Die Karten-Suche bleibt verfügbar. Vor Ort Beschilderung und Zufahrt prüfen.",
+                Light.GREY
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+        if (result.message.isNotBlank()) {
+            Text(result.message, color = Yellow, fontSize = 12.sp, modifier = Modifier.padding(vertical = 4.dp))
+        }
+        OutlinedButton(
+            onClick = { activity.openMapSearch("Parkplatz nahe ${place.title}") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(13.dp)
+        ) { Text("Weitere Parkplätze in Google Maps") }
+        Text(
+            "Parkdaten: OpenStreetMap · Preise, freie Plätze, Höhe und Öffnung am Besuchstag prüfen.",
+            color = Muted,
+            fontSize = 11.sp,
+            lineHeight = 15.sp,
+            modifier = Modifier.padding(top = 7.dp)
+        )
+    }
+}
+
+@Composable
+private fun ParkingSpotCard(
+    spot: ParkingSpot,
+    selected: Boolean,
+    onNavigate: () -> Unit,
+    onToggleSaved: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().testTag("parking-spot:${spot.id}"),
+        colors = CardDefaults.cardColors(
+            containerColor = if (spot.recommended) Green.copy(alpha = .07f) else Color.White
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (spot.recommended) Green.copy(alpha = .35f) else Line
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(13.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                Surface(
+                    color = if (spot.recommended) Green else Blue,
+                    shape = RoundedCornerShape(9.dp)
+                ) {
+                    Text(
+                        "P",
+                        color = Color.White,
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(spot.name, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        "${spot.kind.label} · ${distanceText(spot.distanceToDestinationM)} zum Ziel · ca. ${spot.walkingMinutes} Min. zu Fuß",
+                        color = Blue,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
+                }
+                if (spot.recommended) {
+                    Text("EMPFOHLEN", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Black)
+                }
+            }
+            Spacer(Modifier.height(7.dp))
+            Text(
+                buildList {
+                    add(spot.fee.label)
+                    spot.capacity?.let { add("$it Plätze") }
+                    if (spot.supervised == true) add("überwacht gemeldet")
+                    if (spot.openingHours.isNotBlank()) add(spot.openingHours)
+                    if (spot.maxHeight.isNotBlank()) add("max. ${spot.maxHeight.replace('.', ',')} m")
+                }.joinToString(" · "),
+                color = Muted,
+                fontSize = 12.sp,
+                lineHeight = 16.sp
+            )
+            if (spot.note.isNotBlank()) {
+                Text(spot.note, color = Navy, fontSize = 12.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 5.dp))
+            }
+            Row(
+                Modifier.fillMaxWidth().padding(top = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                TextButton(onClick = onNavigate, modifier = Modifier.weight(1f)) { Text("Navigation") }
+                TextButton(
+                    onClick = onToggleSaved,
+                    modifier = Modifier.weight(1f).testTag("parking-save:${spot.id}")
+                ) { Text(if (selected) "Von Karte entfernen" else "Auf Karte merken") }
             }
         }
     }

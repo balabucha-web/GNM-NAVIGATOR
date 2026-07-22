@@ -37,6 +37,7 @@ object WikiImageResolver {
     internal var debugGalleryOverride: ((TravelPlace, Int) -> List<String>)? = null
 
     private val memory = ConcurrentHashMap<String, List<String>>()
+    private val identityCandidateMemory = ConcurrentHashMap<String, List<Candidate>>()
     private val retryAfter = ConcurrentHashMap<String, Long>()
     private val gate = Semaphore(2)
     private const val RETRY_DELAY_MS = 5L * 60L * 1000L
@@ -47,7 +48,7 @@ object WikiImageResolver {
 
     suspend fun resolveGallery(context: Context, place: TravelPlace, limit: Int = 5): List<String> =
         withContext(Dispatchers.IO) {
-            val wanted = limit.coerceIn(1, 5)
+            val wanted = limit.coerceIn(1, 8)
             if (BuildConfig.DEBUG) {
                 debugGalleryOverride?.invoke(place, wanted)?.take(wanted)?.let {
                     return@withContext it
@@ -114,7 +115,7 @@ object WikiImageResolver {
     /** Used by the device audit to verify the selected POI, not unrelated list thumbnails. */
     fun cachedPhotoCount(context: Context, place: TravelPlace): Int {
         val key = cacheKey(place)
-        return existingFiles(context.applicationContext, key, 5).size
+        return existingFiles(context.applicationContext, key, 8).size
     }
 
     /**
@@ -129,6 +130,11 @@ object WikiImageResolver {
         val languages = wikipediaLanguages(place.region)
 
         if (wanted == 1) {
+            val identity = runCatching {
+                wikidataCandidates(place, includeCategory = false)
+            }.getOrDefault(emptyList())
+            val rankedIdentity = rankCandidates(identity, place)
+            if (rankedIdentity.isNotEmpty()) return rankedIdentity
             val commons = runCatching {
                 commonsSearchCandidates(primary, place, 13)
             }.getOrDefault(emptyList())
@@ -142,6 +148,12 @@ object WikiImageResolver {
                 runCatching { wikipediaCandidates(language, primary, place, 12) }.getOrDefault(emptyList())
             }, place)
         }
+
+        val exactIdentity = runCatching {
+            wikidataCandidates(place, includeCategory = true)
+        }.getOrDefault(emptyList())
+        val rankedIdentity = rankCandidates(exactIdentity, place)
+        if (rankedIdentity.size >= wanted) return rankedIdentity
 
         val initial = supervisorScope {
             listOf(
@@ -160,7 +172,7 @@ object WikiImageResolver {
             ).awaitAll().flatten()
         }
 
-        var ranked = rankCandidates(initial, place)
+        var ranked = rankCandidates(exactIdentity + initial, place)
         if (ranked.size < wanted && queries.size > 1) {
             val secondary = supervisorScope {
                 queries.drop(1).take(3).flatMap { query ->
@@ -180,7 +192,7 @@ object WikiImageResolver {
                     }
                 ).awaitAll().flatten()
             }
-            ranked = rankCandidates(initial + secondary, place)
+            ranked = rankCandidates(exactIdentity + initial + secondary, place)
         }
         return ranked
     }
@@ -194,6 +206,7 @@ object WikiImageResolver {
 
         return all.asSequence()
             .filter { usable(it.url) }
+            .filterNot { obviouslyWrongMedia(it.label) }
             .filter { candidate -> shoppingCandidateFits(place, candidate.label) }
             .filter { candidate ->
                 candidate.trustedCategory || tokens(candidate.label).intersect(wanted).isNotEmpty()
@@ -207,8 +220,23 @@ object WikiImageResolver {
             .sortedByDescending { it.score }
             .distinctBy { it.url.substringBefore('?') }
             .distinctBy { normalizedStem(it.label) }
-            .take(14)
+            .take(20)
             .toList()
+    }
+
+    private fun obviouslyWrongMedia(label: String): Boolean {
+        val normalized = normalize(label)
+        val blockedWords = setOf(
+            "logo", "flag", "blason", "escutcheon", "diagram", "pictogram", "poster",
+            "advertisement", "ticket", "brochure"
+        )
+        val words = normalized.replace(Regex("[^a-z0-9]+"), " ").split(' ').filter(String::isNotBlank)
+        if (words.any(blockedWords::contains)) return true
+        return listOf(
+            " logo", "logo ", " flag", "flag ", " coat of arms", "blason", "escut",
+            " map of", "location map", "plan de", "site plan", "diagram", "pictogram",
+            "poster", "advertisement", "ticket", "brochure", "metrostation", "railway station"
+        ).any(normalized::contains)
     }
 
     private fun shoppingCandidateFits(place: TravelPlace, label: String): Boolean {
@@ -236,12 +264,156 @@ object WikiImageResolver {
             PlaceKind.RAIN -> "interior"
             PlaceKind.SHOPPING -> "exterior"
         }
+        val identities = DestinationMediaCatalog.identities(place)
         val aliases = curatedAliases[place.title].orEmpty()
-        return (aliases + place.imageQuery + "${place.title} $city" + "${place.imageQuery} $detailTerm")
+        return (identities + aliases + place.imageQuery + "${place.title} $city" + "${place.imageQuery} $detailTerm")
             .map(String::trim)
             .filter(String::isNotBlank)
             .distinct()
-            .take(5)
+            .take(7)
+    }
+
+    /**
+     * Resolves the real-world Wikidata item first and validates it against the
+     * destination coordinates. P18 is the identity image; P373 points to the
+     * exact Commons category and provides the remainder of a trustworthy gallery.
+     */
+    private fun wikidataCandidates(place: TravelPlace, includeCategory: Boolean): List<Candidate> {
+        val memoryKey = "${place.region.name}:${place.title}:$includeCategory"
+        identityCandidateMemory[memoryKey]?.let { return it }
+        val identities = DestinationMediaCatalog.identities(place).take(if (includeCategory) 2 else 1)
+        val pinnedIds = DestinationMediaCatalog.wikidataIds(place)
+        val resolved = identities.flatMapIndexed { index, identity ->
+            val ids = pinnedIds.getOrNull(index)?.let { listOf(it) }
+                ?: searchWikidataIds(identity, place.region)
+            if (ids.isEmpty()) return@flatMapIndexed emptyList()
+
+            val entities = wikidataEntities(ids)
+            val entity = entities.mapNotNull { entityCandidate(it, identity, place) }
+                .maxByOrNull { it.first }
+                ?.second
+                ?: return@flatMapIndexed emptyList()
+
+            val label = entity.optJSONObject("labels")?.let { labels ->
+                listOf("de", wikipediaLanguages(place.region).first(), "en")
+                    .firstNotNullOfOrNull { language -> labels.optJSONObject(language)?.optString("value")?.takeIf(String::isNotBlank) }
+            }.orEmpty().ifBlank { identity }
+            val claims = entity.optJSONObject("claims") ?: JSONObject()
+            val photos = claimStrings(claims, "P18").take(2).map { filename ->
+                val encoded = URLEncoder.encode(filename, "UTF-8").replace("+", "%20")
+                Candidate(
+                    label = "$label · $filename",
+                    url = "https://commons.wikimedia.org/wiki/Special:Redirect/file/$encoded?width=1000",
+                    score = 180 - index * 8,
+                    trustedCategory = true
+                )
+            }
+            val categoryPhotos = if (includeCategory) {
+                claimStrings(claims, "P373").take(1).flatMap { category ->
+                    runCatching { commonsExactCategoryCandidates(category, place, 145 - index * 8) }
+                        .getOrDefault(emptyList())
+                }
+            } else emptyList()
+            photos + categoryPhotos
+        }
+        if (resolved.isNotEmpty()) identityCandidateMemory[memoryKey] = resolved
+        return resolved
+    }
+
+    private fun searchWikidataIds(identity: String, region: TravelRegion): List<String> {
+        val compactTerms = buildList {
+            add(identity)
+            val words = identity.split(Regex("\\s+")).filter(String::isNotBlank)
+            if (words.size > 3) add(words.take(3).joinToString(" "))
+            if (words.size > 1) add(words.take(2).joinToString(" "))
+            if (words.isNotEmpty()) add(words.first())
+        }.distinct().filter { it.length >= 4 }
+
+        val languages = (listOf(wikipediaLanguages(region).first(), "en") + wikipediaLanguages(region))
+            .distinct()
+            .take(3)
+        languages.forEach { language ->
+            compactTerms.take(3).forEach { term ->
+                val encoded = URLEncoder.encode(term, "UTF-8")
+                val endpoint = "https://www.wikidata.org/w/api.php" +
+                    "?action=wbsearchentities&search=$encoded&language=$language&uselang=$language" +
+                    "&type=item&limit=7&format=json&origin=*"
+                val root = runCatching { JSONObject(http(endpoint)) }.getOrNull() ?: return@forEach
+                val results = root.optJSONArray("search") ?: JSONArray()
+                val ids = buildList {
+                    for (index in 0 until results.length()) {
+                        results.optJSONObject(index)?.optString("id")?.takeIf(String::isNotBlank)?.let(::add)
+                    }
+                }
+                if (ids.isNotEmpty()) return ids
+            }
+        }
+        return emptyList()
+    }
+
+    private fun wikidataEntities(ids: List<String>): List<JSONObject> {
+        val endpoint = "https://www.wikidata.org/w/api.php" +
+            "?action=wbgetentities&ids=${ids.take(8).joinToString("%7C")}" +
+            "&props=claims%7Clabels&languages=de%7Cen%7Cfr%7Cca%7Ces" +
+            "&format=json&origin=*"
+        val entities = JSONObject(http(endpoint)).optJSONObject("entities") ?: JSONObject()
+        return ids.mapNotNull { entities.optJSONObject(it) }
+    }
+
+    private fun entityCandidate(entity: JSONObject, identity: String, place: TravelPlace): Pair<Int, JSONObject>? {
+        val claims = entity.optJSONObject("claims") ?: return null
+        if (claimStrings(claims, "P18").isEmpty() && claimStrings(claims, "P373").isEmpty()) return null
+        val coordinates = claims.optJSONArray("P625") ?: return null
+        var closest = Double.MAX_VALUE
+        for (index in 0 until coordinates.length()) {
+            val value = coordinates.optJSONObject(index)
+                ?.optJSONObject("mainsnak")
+                ?.optJSONObject("datavalue")
+                ?.optJSONObject("value") ?: continue
+            val lat = value.optDouble("latitude", Double.NaN)
+            val lon = value.optDouble("longitude", Double.NaN)
+            if (lat.isFinite() && lon.isFinite()) {
+                closest = minOf(closest, Geo.distanceM(place.point, GeoPoint(lat, lon)))
+            }
+        }
+        val maximum = when (place.kind) {
+            PlaceKind.NATURE -> 30_000.0
+            PlaceKind.SHOPPING -> 12_000.0
+            else -> 18_000.0
+        }
+        if (!closest.isFinite() || closest > maximum) return null
+
+        val labels = entity.optJSONObject("labels") ?: JSONObject()
+        val labelText = labels.keys().asSequence()
+            .mapNotNull { labels.optJSONObject(it)?.optString("value") }
+            .joinToString(" ")
+        val overlap = tokens(labelText).intersect(tokens(identity)).size
+        val score = 260 - (closest / 120.0).toInt() + overlap * 35
+        return score to entity
+    }
+
+    private fun claimStrings(claims: JSONObject, property: String): List<String> {
+        val array = claims.optJSONArray(property) ?: return emptyList()
+        return buildList {
+            for (index in 0 until array.length()) {
+                array.optJSONObject(index)
+                    ?.optJSONObject("mainsnak")
+                    ?.optJSONObject("datavalue")
+                    ?.optString("value")
+                    ?.takeIf(String::isNotBlank)
+                    ?.let(::add)
+            }
+        }
+    }
+
+    private fun commonsExactCategoryCandidates(categoryName: String, place: TravelPlace, bonus: Int): List<Candidate> {
+        val category = URLEncoder.encode("Category:$categoryName", "UTF-8")
+        val endpoint = "https://commons.wikimedia.org/w/api.php" +
+            "?action=query&generator=categorymembers&gcmtitle=$category" +
+            "&gcmnamespace=6&gcmtype=file&gcmlimit=42" +
+            "&prop=imageinfo&iiprop=url%7Cmime%7Csize&iiurlwidth=1000" +
+            "&format=json&formatversion=2&origin=*"
+        return parseCommons(endpoint, place, categoryName, bonus, trustedCategory = true)
     }
 
     private val curatedAliases = mapOf(
@@ -449,7 +621,7 @@ object WikiImageResolver {
     internal fun exactQueriesForTest(place: TravelPlace): List<String> = exactQueries(place)
 
     private fun cacheKey(place: TravelPlace): String =
-        sha256("v45|${place.region.name}|${place.title}|${place.imageQuery}")
+        sha256("v46-wikidata|${place.region.name}|${place.title}|${DestinationMediaCatalog.identities(place)}")
 
     private fun existingFiles(context: Context, key: String, limit: Int): List<String> =
         (0 until limit).mapNotNull { index ->
@@ -458,17 +630,17 @@ object WikiImageResolver {
         }
 
     private fun imageFile(context: Context, key: String, index: Int): File {
-        val directory = File(context.cacheDir, "travel_photos_v45").apply { mkdirs() }
+        val directory = File(context.cacheDir, "travel_photos_v46").apply { mkdirs() }
         return File(directory, "$key-$index.image")
     }
 
     private fun sourceUrls(context: Context, key: String): Set<String> {
-        val prefs = context.getSharedPreferences("travel_images_v45", Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences("travel_images_v46", Context.MODE_PRIVATE)
         return prefs.getString("sources_$key", "").orEmpty().lineSequence().filter(String::isNotBlank).toSet()
     }
 
     private fun saveSourceUrls(context: Context, key: String, sources: Set<String>) {
-        context.getSharedPreferences("travel_images_v45", Context.MODE_PRIVATE)
+        context.getSharedPreferences("travel_images_v46", Context.MODE_PRIVATE)
             .edit().putString("sources_$key", sources.joinToString("\n")).apply()
     }
 
@@ -484,7 +656,7 @@ object WikiImageResolver {
             connection.instanceFollowRedirects = true
             connection.setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
             connection.setRequestProperty("Accept-Language", "de,en;q=0.8")
-            connection.setRequestProperty("User-Agent", "ReisePilot/4.5 Android family travel app")
+            connection.setRequestProperty("User-Agent", "ReisePilot/4.6 Android family travel app")
             val code = connection.responseCode
             val contentType = connection.contentType.orEmpty().lowercase(Locale.ROOT)
             if (code !in 200..299 || !contentType.startsWith("image/")) return null
@@ -523,21 +695,30 @@ object WikiImageResolver {
         .joinToString("") { "%02x".format(it) }
 
     private fun http(url: String): String {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        return try {
-            connection.connectTimeout = 6_000
-            connection.readTimeout = 10_000
-            connection.instanceFollowRedirects = true
-            connection.setRequestProperty("Accept", "application/json")
-            connection.setRequestProperty("Accept-Language", "de,en;q=0.8")
-            connection.setRequestProperty("User-Agent", "ReisePilot/4.5 Android family travel app")
-            val code = connection.responseCode
-            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-            val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-            if (code !in 200..299) error("Wikimedia HTTP $code")
-            body
-        } finally {
-            connection.disconnect()
+        var lastCode = 0
+        repeat(3) { attempt ->
+            val connection = URL(url).openConnection() as HttpURLConnection
+            try {
+                connection.connectTimeout = 6_000
+                connection.readTimeout = 10_000
+                connection.instanceFollowRedirects = true
+                connection.setRequestProperty("Accept", "application/json")
+                connection.setRequestProperty("Accept-Language", "de,en;q=0.8")
+                connection.setRequestProperty("User-Agent", "ReisePilot/4.6 Android family travel app")
+                val code = connection.responseCode
+                lastCode = code
+                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                if (code in 200..299) return body
+                if (code !in setOf(429, 500, 502, 503, 504) || attempt == 2) {
+                    error("Wikimedia HTTP $code")
+                }
+                val retrySeconds = connection.getHeaderField("Retry-After")?.toLongOrNull()
+                Thread.sleep((retrySeconds?.times(1_000L) ?: (750L * (attempt + 1))).coerceAtMost(4_000L))
+            } finally {
+                connection.disconnect()
+            }
         }
+        error("Wikimedia HTTP $lastCode")
     }
 }
