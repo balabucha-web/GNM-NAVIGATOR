@@ -31,11 +31,31 @@ internal object LiveDataDiagnostics {
                 }
             },
             async(Dispatchers.IO) {
-                probe("Zielbilder") {
-                    val count = WikiImageResolver.liveCandidateCount(collioure)
-                    require(count > 0) { "keine Wikimedia-Treffer" }
-                    "$count passende Wikimedia-Kandidaten · Offline-Grundbild zusätzlich"
-                }
+                runCatching { WikiImageResolver.liveCandidateCount(collioure) }
+                    .fold(
+                        onSuccess = { count ->
+                            if (count > 0) {
+                                LiveSourceStatus(
+                                    "Zielbilder",
+                                    "$count passende Wikimedia-Kandidaten · Offline-Grundbild zusätzlich",
+                                    Light.GREEN
+                                )
+                            } else {
+                                LiveSourceStatus(
+                                    "Zielbilder",
+                                    "Offline-Vorschau vorhanden · Online-Galerie derzeit ohne Treffer",
+                                    Light.YELLOW
+                                )
+                            }
+                        },
+                        onFailure = {
+                            LiveSourceStatus(
+                                "Zielbilder",
+                                "Offline-Vorschau vorhanden · Online-Galerie derzeit nicht erreichbar",
+                                Light.YELLOW
+                            )
+                        }
+                    )
             },
             async(Dispatchers.IO) {
                 probe("Deutschland-Verkehr") {
@@ -67,13 +87,37 @@ internal object LiveDataDiagnostics {
             },
             async(Dispatchers.IO) {
                 if (tankerKey.length < 30) {
-                    LiveSourceStatus("Deutschland-Diesel", "Tankerkönig-Key nicht eingerichtet", Light.GREY)
+                    LiveSourceStatus(
+                        "Deutschland-Diesel",
+                        "Tankerkönig-API-Key fehlt · geplante Tankstopps bleiben verfügbar",
+                        Light.YELLOW
+                    )
                 } else {
-                    probe("Deutschland-Diesel") {
-                        val count = FuelPriceClient.liveProbeGermany(tankerKey)
-                        require(count > 0) { "keine Preise um Schwerin" }
-                        "$count Tankerkönig-Preise um Schwerin geladen"
-                    }
+                    runCatching { FuelPriceClient.liveProbeGermany(tankerKey) }
+                        .fold(
+                            onSuccess = { count ->
+                                if (count > 0) {
+                                    LiveSourceStatus(
+                                        "Deutschland-Diesel",
+                                        "$count Tankerkönig-Preise um Schwerin geladen",
+                                        Light.GREEN
+                                    )
+                                } else {
+                                    LiveSourceStatus(
+                                        "Deutschland-Diesel",
+                                        "API-Key vorhanden, aktuell keine Preise im Suchbereich · Fallback-Stopps aktiv",
+                                        Light.YELLOW
+                                    )
+                                }
+                            },
+                            onFailure = { error ->
+                                LiveSourceStatus(
+                                    "Deutschland-Diesel",
+                                    "Preisquelle derzeit nicht erreichbar · Fallback-Stopps aktiv${error.message?.let { ": ${it.take(70)}" }.orEmpty()}",
+                                    Light.YELLOW
+                                )
+                            }
+                        )
                 }
             },
             async(Dispatchers.IO) {
@@ -83,7 +127,7 @@ internal object LiveDataDiagnostics {
                         connection.connectTimeout = 8_000
                         connection.readTimeout = 12_000
                         connection.setRequestProperty("Accept", "application/json")
-                        connection.setRequestProperty("User-Agent", "ReisePilot/4.9 Android family travel app")
+                        connection.setRequestProperty("User-Agent", "ReisePilot/5.1 Android family travel app")
                         val code = connection.responseCode
                         require(code in 200..299) { "OpenFreeMap HTTP $code" }
                         val body = connection.inputStream.bufferedReader().use { it.readText() }
@@ -98,7 +142,7 @@ internal object LiveDataDiagnostics {
             },
             async(Dispatchers.IO) {
                 if (!mapboxTokenLooksValid(token)) {
-                    LiveSourceStatus("Live-Route", "Mapbox-Token nicht eingerichtet", Light.GREY)
+                    LiveSourceStatus("Live-Route", "Mapbox-Token nicht eingerichtet", Light.YELLOW)
                 } else {
                     probe("Live-Route") {
                         val route = MapboxClient.route(token, TripConfig.hotel, TripConfig.canet)
