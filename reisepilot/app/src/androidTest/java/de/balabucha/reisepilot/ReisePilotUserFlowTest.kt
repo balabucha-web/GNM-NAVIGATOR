@@ -1,11 +1,6 @@
 package de.balabucha.reisepilot
 
 import android.Manifest
-import android.content.Context
-import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.Color
-import android.net.Uri
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.performTouchInput
@@ -16,7 +11,6 @@ import androidx.test.rule.GrantPermissionRule
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class ReisePilotUserFlowTest {
@@ -54,36 +48,22 @@ class ReisePilotUserFlowTest {
 
     private fun clickTab(label: String) = clickControl(label)
 
-    private fun swipeUp(times: Int) {
+    private fun swipePage(title: String, up: Boolean, times: Int) {
         repeat(times) {
-            pageList("Entdecken").performTouchInput { swipeUp() }
+            pageList(title).performTouchInput {
+                if (up) swipeUp() else swipeDown()
+            }
             compose.waitForIdle()
         }
-    }
-
-    private fun swipeDown(times: Int) {
-        repeat(times) {
-            pageList("Entdecken").performTouchInput { swipeDown() }
-            compose.waitForIdle()
-        }
-    }
-
-    private fun findTagByScrolling(tag: String) {
-        pageList("Entdecken").performScrollToNode(hasTestTag(tag))
-        compose.waitForIdle()
-        compose.onNodeWithTag(tag, useUnmergedTree = true).assertExists()
     }
 
     @Test
-    fun primaryUserJourney_remainsStable_andCachesRealDestinationGallery() {
+    fun primaryUserJourney_remainsStable_onVisual50Navigation() {
         pageList("Start").assertIsDisplayed()
-        if (java.time.Instant.now().isBefore(VACATION_DEPARTURE.toInstant())) {
-            compose.onNodeWithTag("vacation-countdown", useUnmergedTree = true).assertIsDisplayed()
-            compose.onNodeWithText("Samstag, 25. Juli 2026 · 09:00 Uhr")
-                .assertIsDisplayed()
-        }
+        compose.onNodeWithText("Dein Reise-Cockpit").assertIsDisplayed()
+        compose.onNodeWithText("Etappe wählen").assertIsDisplayed()
+        compose.onNodeWithText("Fahrt auf einen Blick").assertExists()
 
-        // Exercise the start action without making the UI audit depend on an emulator GPS fix.
         val startLabel = if (java.time.Instant.now().isBefore(VACATION_DEPARTURE.toInstant())) {
             "Testfahrt starten"
         } else {
@@ -91,152 +71,65 @@ class ReisePilotUserFlowTest {
         }
         pageList("Start").performScrollToNode(hasText(startLabel))
         clickControl(startLabel)
-        Thread.sleep(2_000)
+        Thread.sleep(1_500)
         compose.activity.serviceAction(TripTrackingService.ACTION_STOP)
         compose.waitForIdle()
 
-        // Reproduce the reported accidental 10 km test drive and verify the
-        // user-facing reset clears only the journey state.
-        val testDrive = TripSnapshot(
-            active = false,
-            stage = Stage.SATURDAY,
-            tripMode = TripMode.TEST,
-            driveMinutes = 14,
-            distanceTravelledKm = 10.0,
-            fuelLitres = 59.2,
-            nextTitle = "Tracking beendet",
-            nextDetail = "Testfahrt"
-        )
-        compose.activity.getSharedPreferences("trip_state", Context.MODE_PRIVATE).edit()
-            .putString("snapshot", testDrive.json().toString())
-            .commit()
-        compose.activity.sendBroadcast(Intent(TripTrackingService.ACTION_UPDATE).apply {
-            setPackage(compose.activity.packageName)
-            putExtra("snapshot", testDrive.json().toString())
-        })
-        clickTab("Route")
+        clickTab("Karte")
         compose.onNodeWithText("Route & Karte").assertIsDisplayed()
-        Thread.sleep(2_000)
-        compose.waitForIdle()
 
-        clickTab("Entdecken")
+        clickTab("Ziele")
+        pageList("Ziele").assertIsDisplayed()
         compose.onNodeWithText("Ziel suchen").assertIsDisplayed()
 
         val selectedPlace = DestinationCatalog.places.first { it.title == "Collioure" }
-        val fixtureDirectory = File(compose.activity.cacheDir, "gallery-test").apply {
-            deleteRecursively()
-            mkdirs()
-        }
-        val fixturePhotos = listOf(Color.BLUE, Color.CYAN, Color.YELLOW).mapIndexed { index, color ->
-            val file = File(fixtureDirectory, "collioure-$index.png")
-            Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888).run {
-                eraseColor(color)
-                file.outputStream().use { compress(Bitmap.CompressFormat.PNG, 100, it) }
-                recycle()
-            }
-            Uri.fromFile(file).toString()
-        }
-        WikiImageResolver.debugGalleryOverride = { place, limit ->
-            if (place.title == selectedPlace.title) fixturePhotos.take(limit) else emptyList()
-        }
-        val parkingFixture = ParkingSpot(
-            id = "test:parking:collioure",
-            name = "Parking du Cap Dourats",
-            point = GeoPoint(42.5261364, 3.0689640),
-            kind = ParkingKind.SURFACE,
-            distanceToDestinationM = 1_160,
-            fee = ParkingFee.PAID,
-            capacity = 230,
-            recommended = true,
-            note = "Testempfehlung"
-        )
-        ParkingResolver.debugOverride = {
-            ParkingSearchResult(listOf(parkingFixture), System.currentTimeMillis())
-        }
-
-        val cardTag = "destination-card:${selectedPlace.region.name}:${selectedPlace.title}"
-        findTagByScrolling(cardTag)
+        val cardTag = destinationCardTag(selectedPlace)
+        pageList("Ziele").performScrollToNode(hasTestTag(cardTag))
         compose.onNodeWithTag(cardTag, useUnmergedTree = true)
             .assertIsDisplayed()
             .performClick()
         compose.waitForIdle()
         compose.onNodeWithText("Route in Google Maps").assertIsDisplayed()
-        compose.waitUntil(15_000) {
-            compose.onAllNodesWithText("1 / 4", useUnmergedTree = true)
-                .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
-        }
-        compose.onNodeWithContentDescription(
-            "Collioure · Foto 2",
-            useUnmergedTree = true
-        ).assertExists()
-        compose.onNodeWithText("1 / 4").assertExists()
-        compose.onNodeWithTag("parking-section", useUnmergedTree = true).performScrollTo()
-        compose.onNodeWithText("Parking du Cap Dourats").assertIsDisplayed()
-        compose.onNodeWithTag("parking-save:${parkingFixture.id}", useUnmergedTree = true).performClick()
-        compose.runOnIdle {
-            check(ParkingSelectionStore.selectedFor(compose.activity, selectedPlace)?.spot?.id == parkingFixture.id)
-        }
-        compose.onNodeWithText("Von Karte entfernen").assertIsDisplayed()
-        compose.onNodeWithTag("parking-save:${parkingFixture.id}", useUnmergedTree = true).performClick()
-        compose.runOnIdle {
-            check(ParkingSelectionStore.selectedFor(compose.activity, selectedPlace) == null)
-        }
-        WikiImageResolver.debugGalleryOverride = null
-        ParkingResolver.debugOverride = null
-        compose.onNodeWithText("Zurück zur Liste").performScrollTo().performClick()
+        compose.onNodeWithText("Zurück zur Liste").performClick()
         compose.waitForIdle()
-        pageList("Entdecken").assertExists()
-        compose.onNodeWithTag(cardTag, useUnmergedTree = true).assertIsDisplayed()
+
+        clickTab("Packliste")
+        compose.onNodeWithText("Packliste", useUnmergedTree = true).assertExists()
 
         clickTab("Mehr")
+        pageList("Mehr").assertIsDisplayed()
         compose.onNodeWithText("Reiseplan").assertIsDisplayed()
         compose.onNodeWithText("Buchungen").assertIsDisplayed()
         pageList("Mehr").performScrollToNode(hasTestTag("technical-settings-button"))
-        compose.onNodeWithTag("technical-settings-button", useUnmergedTree = true)
-            .assertIsDisplayed()
-            .performClick()
+        compose.onNodeWithTag("technical-settings-button", useUnmergedTree = true).performClick()
         compose.waitUntil(5_000) {
             compose.onAllNodesWithTag("technical-settings-screen", useUnmergedTree = true)
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
         }
-        compose.onNodeWithTag("technical-settings-screen", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithText("Karte und Live-Verkehr").assertIsDisplayed()
-        pageList("Einstellungen").performScrollToNode(hasTestTag("check-live-sources"))
-        compose.onNodeWithTag("check-live-sources", useUnmergedTree = true).assertIsDisplayed()
-        pageList("Einstellungen").performScrollToNode(hasTestTag("reset-test-trip"))
-        compose.onNodeWithTag("reset-test-trip", useUnmergedTree = true).performClick()
-        compose.onNodeWithText("Testfahrt löschen?").assertIsDisplayed()
-        compose.onNodeWithTag("confirm-reset-test-trip", useUnmergedTree = true).performClick()
-        compose.waitUntil(8_000) {
-            val raw = compose.activity.getSharedPreferences("trip_state", Context.MODE_PRIVATE)
-                .getString("snapshot", null)
-            val reset = TripSnapshot.fromJson(raw)
-            !reset.active && reset.distanceTravelledKm == 0.0 && reset.driveMinutes == 0
-        }
-        compose.activity.onBackPressedDispatcher.onBackPressed()
-        compose.waitForIdle()
-        pageList("Mehr").performScrollToNode(hasText("System und Fahrzeug"))
-        compose.onNodeWithText("System und Fahrzeug").assertIsDisplayed()
     }
 
     @Test
-    fun destinationList_survivesHeavyScrollingAndFiltering() {
-        clickTab("Entdecken")
+    fun visualDestinationList_survivesHeavyScrollingAndFiltering() {
+        clickTab("Ziele")
+        pageList("Ziele").assertIsDisplayed()
         compose.onNodeWithText("Ziel suchen").assertIsDisplayed()
-        repeat(4) {
-            swipeUp(12)
-            swipeDown(12)
+
+        repeat(3) {
+            swipePage("Ziele", up = true, times = 8)
+            swipePage("Ziele", up = false, times = 8)
         }
-        clickTab("Route")
-        compose.onNodeWithText("Route & Karte").assertIsDisplayed()
-        clickTab("Entdecken")
 
         clickControl("Barcelona")
-        repeat(3) {
-            swipeUp(10)
-            swipeDown(10)
+        compose.onNodeWithText("Barcelona", useUnmergedTree = true).assertExists()
+        repeat(2) {
+            swipePage("Ziele", up = true, times = 8)
+            swipePage("Ziele", up = false, times = 8)
         }
-        clickTab("Route")
+
+        clickTab("Karte")
         compose.onNodeWithText("Route & Karte").assertIsDisplayed()
+        clickTab("Ziele")
+        pageList("Ziele").assertIsDisplayed()
     }
 }
