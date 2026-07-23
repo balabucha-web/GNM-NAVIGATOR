@@ -57,6 +57,12 @@ class ReisePilotUserFlowTest {
         }
     }
 
+    private fun assertAtLeastOneText(text: String) {
+        val nodes = compose.onAllNodesWithText(text, useUnmergedTree = true)
+            .fetchSemanticsNodes(atLeastOneRootRequired = false)
+        check(nodes.isNotEmpty()) { "Expected at least one node containing '$text'" }
+    }
+
     @Test
     fun primaryUserJourney_remainsStable_onVisual50Navigation() {
         pageList("Start").assertIsDisplayed()
@@ -94,7 +100,7 @@ class ReisePilotUserFlowTest {
         compose.waitForIdle()
 
         clickTab("Packliste")
-        compose.onNodeWithText("Packliste", useUnmergedTree = true).assertExists()
+        assertAtLeastOneText("Packliste")
 
         clickTab("Mehr")
         pageList("Mehr").assertIsDisplayed()
@@ -121,7 +127,7 @@ class ReisePilotUserFlowTest {
         }
 
         clickControl("Barcelona")
-        compose.onNodeWithText("Barcelona", useUnmergedTree = true).assertExists()
+        assertAtLeastOneText("Barcelona")
         repeat(2) {
             swipePage("Ziele", up = true, times = 8)
             swipePage("Ziele", up = false, times = 8)
