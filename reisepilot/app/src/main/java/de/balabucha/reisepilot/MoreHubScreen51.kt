@@ -14,11 +14,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private enum class MoreHubPage51 { HOME, TECHNICAL, DIAGNOSTICS }
+private enum class MoreHubPage51 { HOME, PACKING, TECHNICAL, DIAGNOSTICS }
 
 @Composable
 fun MoreHubScreen51(activity: MainActivity, snapshot: TripSnapshot, modifier: Modifier) {
     var page by rememberSaveable { mutableStateOf(MoreHubPage51.HOME) }
+
+    if (page == MoreHubPage51.PACKING) {
+        BackHandler { page = MoreHubPage51.HOME }
+        PackingListScreen(
+            activity = activity,
+            modifier = modifier,
+            onBack = { page = MoreHubPage51.HOME }
+        )
+        return
+    }
 
     if (page == MoreHubPage51.TECHNICAL) {
         BackHandler { page = MoreHubPage51.HOME }
@@ -46,7 +56,7 @@ fun MoreHubScreen51(activity: MainActivity, snapshot: TripSnapshot, modifier: Mo
         item { SectionLabel51("Reise") }
         item { JourneyOverview51(activity) }
         item { BookingOverview51(activity) }
-        item { PackingOverview51(activity) }
+        item { PackingOverview51(activity) { page = MoreHubPage51.PACKING } }
 
         item { SectionLabel51("Unterwegs") }
         item { FuelAndApps51(activity, snapshot) }
@@ -214,7 +224,7 @@ private fun BookingLine51(
 }
 
 @Composable
-private fun PackingOverview51(activity: MainActivity) {
+private fun PackingOverview51(activity: MainActivity, onOpen: () -> Unit) {
     val repository = remember { PackingRepository(activity.applicationContext) }
     val progress = PackingLogic.progress(repository.state.items)
     AppCard {
@@ -237,12 +247,12 @@ private fun PackingOverview51(activity: MainActivity) {
             color = Green,
             trackColor = Line
         )
-        Text(
-            "Die vollständige Packliste ist direkt über die untere Navigation erreichbar.",
-            color = Muted,
-            fontSize = 12.sp,
-            modifier = Modifier.padding(top = 7.dp)
-        )
+        Spacer(Modifier.height(10.dp))
+        Button(
+            onClick = onOpen,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp).testTag("open-packing-list"),
+            shape = RoundedCornerShape(13.dp)
+        ) { Text("Packliste öffnen") }
     }
 }
 
