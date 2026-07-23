@@ -11,8 +11,8 @@ android {
         applicationId = "de.balabucha.reisepilot"
         minSdk = 27
         targetSdk = 37
-        versionCode = 21
-        versionName = "4.9"
+        versionCode = 22
+        versionName = "5.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
