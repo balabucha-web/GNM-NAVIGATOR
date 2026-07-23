@@ -3,6 +3,7 @@ package de.balabucha.reisepilot
 import android.content.*
 import android.net.Uri
 import android.os.*
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
@@ -83,6 +84,16 @@ class MainActivity : ComponentActivity() {
 
     fun reloadTripConfig() {
         serviceAction(TripTrackingService.ACTION_RELOAD_CONFIG)
+    }
+
+    fun updateKeepScreenOn(tripActive: Boolean) {
+        val enabled = getSharedPreferences("settings", MODE_PRIVATE)
+            .getBoolean("keep_screen_on", true) && tripActive
+        if (enabled) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
     }
 
     fun updateApiStatus(ok: Boolean, message: String) {
