@@ -1,0 +1,90 @@
+name: ReisePilot 5.0 Emulator Audit
+
+on:
+  push:
+    branches:
+      - reisepilot-v50-visual-redesign
+    paths:
+      - 'reisepilot/**'
+      - '.github/workflows/reisepilot-v50-emulator.yml'
+  workflow_dispatch:
+
+jobs:
+  emulator-audit:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 55
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+      - name: Apply visual migration when required
+        working-directory: reisepilot
+        run: |
+          set -euo pipefail
+          if [ -f scripts/apply_v50_visual.py.gz.b64 ]; then
+            base64 -d scripts/apply_v50_visual.py.gz.b64 | gzip -d > /tmp/apply_v50_visual.py
+            python3 /tmp/apply_v50_visual.py
+          fi
+      - name: Compile app and emulator tests
+        run: |
+          set -o pipefail
+          cd reisepilot
+          echo 'PHASE compile started' > emulator-summary.txt
+          gradle :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace 2>&1 | tee emulator-compile.log
+          echo 'PHASE compile passed' >> emulator-summary.txt
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -la /dev/kvm || true
+      - name: Install Android API 34 emulator image
+        run: |
+          set -o pipefail
+          cd reisepilot
+          echo 'PHASE install emulator image' >> emulator-summary.txt
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)
+          AVDMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name avdmanager | head -n 1)
+          test -x "$SDKMANAGER"
+          test -x "$AVDMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" 'platform-tools' 'emulator' 'platforms;android-34' 'system-images;android-34;google_apis;x86_64' 2>&1 | tee emulator-sdk-install.log
+          echo no | "$AVDMANAGER" create avd --force --name reisepilot_api34 --package 'system-images;android-34;google_apis;x86_64' --device 'pixel_6' 2>&1 | tee emulator-avd-create.log
+      - name: Boot, install and test as a user
+        run: |
+          cd reisepilot
+          chmod +x scripts/run_emulator_audit.sh
+          scripts/run_emulator_audit.sh
+      - name: Upload emulator evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReisePilot-v5.0-emulator-audit
+          path: |
+            reisepilot/emulator-summary.txt
+            reisepilot/emulator-compile.log
+            reisepilot/emulator-sdk-install.log
+            reisepilot/emulator-avd-create.log
+            reisepilot/emulator-boot.log
+            reisepilot/emulator-devices.txt
+            reisepilot/emulator-api.txt
+            reisepilot/emulator-test.log
+            reisepilot/emulator-app-install.txt
+            reisepilot/emulator-launch.txt
+            reisepilot/emulator-start.xml
+            reisepilot/emulator-start-screen.png
+            reisepilot/emulator-after-monkey.png
+            reisepilot/packing-responsive-*.log
+            reisepilot/packing-responsive-*.png
+            reisepilot/monkey.log
+            reisepilot/emulator-logcat.txt
+            reisepilot/app/build/reports/androidTests/connected
+            reisepilot/app/build/outputs/androidTest-results/connected
+          if-no-files-found: warn
