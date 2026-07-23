@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: reisepilot-emulator-${{ github.ref }}
+  group: reisepilot-emulator
   cancel-in-progress: true
 
 jobs:
