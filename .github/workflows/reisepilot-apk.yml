@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: reisepilot-build-${{ github.ref }}
+  group: reisepilot-build
   cancel-in-progress: true
 
 jobs:
