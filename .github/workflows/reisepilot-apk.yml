@@ -1,4 +1,4 @@
-name: Build ReisePilot 5.0 APK
+name: Build ReisePilot 5.1 APK
 
 on:
   push:
@@ -30,7 +30,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
-      - name: Verify ReisePilot 5.0 sources
+      - name: Verify ReisePilot 5.1 sources
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -38,28 +38,44 @@ jobs:
           required = {
               'Ui.kt': [
                   'PACKING("Packliste")',
-                  'NavigationBarItemDefaults.colors',
-                  'VisualLiveScreen',
-                  'VisualDiscoverScreen',
+                  'VisualLiveScreen51',
+                  'MapScreen51',
+                  'VisualDiscoverScreen51',
+                  'MoreHubScreen51',
+                  'bottom = 86.dp',
               ],
-              'VisualScreens.kt': [
-                  'RoadTripCockpit',
-                  'DrivingFocusPanel',
-                  'VisualDiscoverScreen',
-                  'Details & Bilder',
-                  'DestinationOfflinePhoto',
+              'VisualScreens51.kt': [
+                  'TESTMODUS',
+                  'TRACKING AKTIV',
+                  'arrivalPresentation51',
+                  'steht / langsam',
+                  'ab aktuellem Standort',
+                  'Reisetipps anzeigen',
+              ],
+              'MapScreen51.kt': [
+                  'FilterChip',
+                  'Punkte & Legende',
+                  'NativeTripMap51',
+              ],
+              'NativeTripMap51.kt': [
+                  'MapLayers51',
+                  'latestLayers.traffic',
+                  'latestLayers.fuel',
+                  'latestLayers.parking',
+                  'latestLayers.tolls',
+              ],
+              'MoreHubScreen51.kt': [
+                  'Canet → Paris',
+                  'Paris → Schwerin',
+                  'Live-Daten kompakt prüfen',
+              ],
+              'CompactDiagnostics51.kt': [
+                  'Funktionierende Quellen',
+                  'Hinweise und Einschränkungen',
               ],
               'MainActivity.kt': [
                   'FLAG_KEEP_SCREEN_ON',
                   'updateKeepScreenOn',
-              ],
-              'DiscoverScreen.kt': [
-                  'resolveGallery(context, place, 8)',
-                  'Route in Google Maps',
-              ],
-              'NativeTripMap.kt': [
-                  'tiles.openfreemap.org/styles/liberty',
-                  'isScrollGesturesEnabled = true',
               ],
           }
           for name, markers in required.items():
@@ -67,9 +83,9 @@ jobs:
               for marker in markers:
                   assert marker in text, f'{name}: missing {marker}'
           version = Path('app/build.gradle.kts').read_text()
-          assert 'versionName = "5.0"' in version
-          assert 'versionCode = 22' in version
-          print('PASS: ReisePilot 5.0 sources present')
+          assert 'versionName = "5.1"' in version
+          assert 'versionCode = 23' in version
+          print('PASS: ReisePilot 5.1 sources present')
           PY
       - name: Check live sources and Wikimedia images
         run: |
@@ -99,14 +115,14 @@ jobs:
           code=${PIPESTATUS[0]}
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           if [ "$code" -eq 0 ]; then
-            sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/ReisePilot-Live-v5.0.sha256
+            sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/ReisePilot-Live-v5.1.sha256
           fi
           exit 0
       - name: Upload build evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-v5.0-build-evidence
+          name: ReisePilot-v5.1-build-evidence
           path: |
             reisepilot/build.log
             reisepilot/app/build/reports/tests/testDebugUnitTest
@@ -116,10 +132,10 @@ jobs:
         if: steps.build.outputs.exit_code == '0'
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-Live-v5.0-APK
+          name: ReisePilot-Live-v5.1-APK
           path: |
             reisepilot/app/build/outputs/apk/debug/app-debug.apk
-            reisepilot/app/build/outputs/apk/debug/ReisePilot-Live-v5.0.sha256
+            reisepilot/app/build/outputs/apk/debug/ReisePilot-Live-v5.1.sha256
           if-no-files-found: error
       - name: Fail when validation failed
         if: steps.build.outputs.exit_code != '0'
