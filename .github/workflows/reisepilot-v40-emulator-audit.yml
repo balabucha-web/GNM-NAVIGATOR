@@ -30,15 +30,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
-      - name: Apply 5.0 migration when required
-        working-directory: reisepilot
-        run: |
-          set -euo pipefail
-          if [ -f scripts/apply_v50_visual.py.gz.b64 ]; then
-            base64 -d scripts/apply_v50_visual.py.gz.b64 | gzip -d > /tmp/apply_v50_visual.py
-            python3 /tmp/apply_v50_visual.py
-          fi
-      - name: Compile app and emulator tests first
+      - name: Compile app and emulator tests
         run: |
           set -o pipefail
           cd reisepilot
