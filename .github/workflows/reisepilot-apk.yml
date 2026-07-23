@@ -59,10 +59,10 @@ jobs:
               ],
               'NativeTripMap51.kt': [
                   'MapLayers51',
-                  'latestLayers.traffic',
-                  'latestLayers.fuel',
-                  'latestLayers.parking',
-                  'latestLayers.tolls',
+                  'layers.traffic',
+                  'layers.fuel',
+                  'layers.parking',
+                  'layers.tolls',
               ],
               'MoreHubScreen51.kt': [
                   'Canet → Paris',
