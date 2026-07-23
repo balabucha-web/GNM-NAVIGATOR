@@ -18,15 +18,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     defaults:
       run:
         working-directory: reisepilot
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -34,41 +30,37 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
-      - name: Apply guarded source migration
-        run: |
-          set -euo pipefail
-          if [ -f scripts/apply_v50_visual.py.gz.b64 ]; then
-            base64 -d scripts/apply_v50_visual.py.gz.b64 | gzip -d > /tmp/apply_v50_visual.py
-            python3 /tmp/apply_v50_visual.py
-            rm scripts/apply_v50_visual.py.gz.b64
-          fi
-      - name: Commit migrated sources to release branch
-        if: github.event_name == 'push'
-        run: |
-          set -euo pipefail
-          if git diff --quiet; then
-            echo 'Sources already migrated.'
-            exit 0
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -m 'feat(reisepilot): apply 5.0 visual redesign'
-          git push
-      - name: Verify 5.0 guards
+      - name: Verify ReisePilot 5.0 sources
         run: |
           python3 - <<'PY'
           from pathlib import Path
           root = Path('app/src/main/java/de/balabucha/reisepilot')
           required = {
-              'Ui.kt': ['PACKING("Packliste")', 'NavigationBarItemDefaults.colors', 'SoftBlue'],
-              'VisualComponents.kt': ['RoadTripHeroCard', 'DrivingFocusCard', 'MapLayerControls'],
-              'LiveScreen.kt': ['RoadTripHeroCard(snapshot', 'JourneyMetricStrip(snapshot)', 'DrivingFocusCard(snapshot)'],
-              'DiscoverScreen.kt': ['Details & Bilder', 'height(188.dp)', 'DestinationOfflinePhoto(place'],
-              'MapScreen.kt': ['showTraffic', 'MapLayerControls', 'showTolls'],
-              'NativeTripMap.kt': ['latestShowTraffic', 'latestShowFuel', 'latestShowParking'],
-              'MainActivity.kt': ['FLAG_KEEP_SCREEN_ON', 'updateKeepScreenOn'],
-              'MoreScreen.kt': ['Bildschirm während der Reise aktiv', 'keep_screen_on'],
+              'Ui.kt': [
+                  'PACKING("Packliste")',
+                  'NavigationBarItemDefaults.colors',
+                  'VisualLiveScreen',
+                  'VisualDiscoverScreen',
+              ],
+              'VisualScreens.kt': [
+                  'RoadTripCockpit',
+                  'DrivingFocusPanel',
+                  'VisualDiscoverScreen',
+                  'Details & Bilder',
+                  'DestinationOfflinePhoto',
+              ],
+              'MainActivity.kt': [
+                  'FLAG_KEEP_SCREEN_ON',
+                  'updateKeepScreenOn',
+              ],
+              'DiscoverScreen.kt': [
+                  'resolveGallery(context, place, 8)',
+                  'Route in Google Maps',
+              ],
+              'NativeTripMap.kt': [
+                  'tiles.openfreemap.org/styles/liberty',
+                  'isScrollGesturesEnabled = true',
+              ],
           }
           for name, markers in required.items():
               text = (root / name).read_text()
@@ -77,9 +69,9 @@ jobs:
           version = Path('app/build.gradle.kts').read_text()
           assert 'versionName = "5.0"' in version
           assert 'versionCode = 22' in version
-          print('PASS: ReisePilot 5.0 visual guards present')
+          print('PASS: ReisePilot 5.0 sources present')
           PY
-      - name: Check live sources and images
+      - name: Check live sources and Wikimedia images
         run: |
           python3 scripts/check_live_data.py
           python3 scripts/check_wikimedia_images.py
@@ -90,13 +82,15 @@ jobs:
           from pathlib import Path
           assets = Path('app/src/main/assets')
           entries = json.loads((assets / 'destination_photos/index.json').read_text())['places']
-          assert len(entries) == 93
-          assert sum(bool(item['photo']) for item in entries.values()) >= 75
+          assert len(entries) == 93, len(entries)
+          actual = sum(bool(item['photo']) for item in entries.values())
+          assert actual >= 75, actual
           parking = json.loads((assets / 'destination_parkings.json').read_text())['places']
-          assert len(parking) == 93 and sum(bool(items) for items in parking.values()) == 93
-          print('PASS: offline destination assets present')
+          assert len(parking) == 93
+          assert sum(bool(items) for items in parking.values()) == 93
+          print(f'PASS: {len(entries)} destinations, {actual} exact offline photos, complete parking fallbacks')
           PY
-      - name: Test, lint and build debug APK
+      - name: Unit tests, lint and APK build
         id: build
         shell: bash
         run: |
