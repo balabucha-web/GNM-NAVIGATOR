@@ -88,6 +88,7 @@ fun ReisePilotApp(activity: MainActivity, snapshot: TripSnapshot) {
 
     Scaffold(
         containerColor = Bg,
+        contentWindowInsets = WindowInsets.safeDrawing,
         bottomBar = {
             NavigationBar(containerColor = Color.White, tonalElevation = 2.dp) {
                 AppTab.entries.forEach { item ->
@@ -110,11 +111,11 @@ fun ReisePilotApp(activity: MainActivity, snapshot: TripSnapshot) {
     ) { padding ->
         val pageModifier = Modifier.padding(padding)
         when (tab) {
-            AppTab.START -> VisualLiveScreen(activity, snapshot, pageModifier)
-            AppTab.ROUTE -> MapScreen(activity, snapshot, pageModifier)
-            AppTab.DISCOVER -> VisualDiscoverScreen(activity, snapshot, pageModifier)
+            AppTab.START -> VisualLiveScreen51(activity, snapshot, pageModifier)
+            AppTab.ROUTE -> MapScreen51(activity, snapshot, pageModifier)
+            AppTab.DISCOVER -> VisualDiscoverScreen51(activity, snapshot, pageModifier)
             AppTab.PACKING -> PackingListScreen(activity, pageModifier) { tab = AppTab.MORE }
-            AppTab.MORE -> MoreHubScreen(activity, snapshot, pageModifier)
+            AppTab.MORE -> MoreHubScreen51(activity, snapshot, pageModifier)
         }
     }
 }
@@ -123,7 +124,7 @@ fun ReisePilotApp(activity: MainActivity, snapshot: TripSnapshot) {
 fun Page(title: String, subtitle: String, modifier: Modifier, content: LazyListScope.() -> Unit) {
     LazyColumn(
         modifier.fillMaxSize().testTag("page-list:$title"),
-        contentPadding = PaddingValues(start = 15.dp, top = 14.dp, end = 15.dp, bottom = 30.dp),
+        contentPadding = PaddingValues(start = 15.dp, top = 18.dp, end = 15.dp, bottom = 86.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
