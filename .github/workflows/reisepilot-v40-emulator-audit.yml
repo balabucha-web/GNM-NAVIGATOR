@@ -1,4 +1,4 @@
-name: ReisePilot 5.0 Emulator Audit
+name: ReisePilot 5.2 Emulator Audit
 
 on:
   push:
@@ -14,6 +14,10 @@ on:
       - 'reisepilot/**'
       - '.github/workflows/reisepilot-v40-emulator-audit.yml'
   workflow_dispatch:
+
+concurrency:
+  group: reisepilot-emulator-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   emulator-audit:
@@ -64,7 +68,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-v5.0-emulator-audit
+          name: ReisePilot-v5.2-emulator-audit
           path: |
             reisepilot/emulator-summary.txt
             reisepilot/emulator-compile.log
