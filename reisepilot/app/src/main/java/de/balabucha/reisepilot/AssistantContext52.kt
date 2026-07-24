@@ -3,6 +3,8 @@ package de.balabucha.reisepilot
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import kotlin.math.round
 
 object AssistantContext52 {
@@ -10,28 +12,32 @@ object AssistantContext52 {
         context: Context,
         snapshot: TripSnapshot,
         intent: AssistantIntent52,
-        question: String
+        question: String,
+        history: List<Pair<String, String>> = emptyList()
     ): JSONObject {
         val location = snapshot.lat?.let { lat -> snapshot.lon?.let { lon -> GeoPoint(lat, lon) } }
         val region = DestinationCatalog.nearestRegion(location) ?: TravelRegion.CANET
         val packing = PackingRepository(context).state
         val progress = PackingLogic.progress(packing.items)
-        val openItems = packing.items.filterNot { it.checked }.map { it.name }.distinct().take(40)
+        val openItems = packing.items.filterNot { it.checked }.map { it.name }.distinct().take(45)
         val destinationCandidates = DestinationCatalog.places
             .asSequence()
             .filter { it.region == region }
             .map { place -> place to DestinationCatalog.distanceKm(location, place) }
             .sortedWith(compareBy<Pair<TravelPlace, Double?>> { it.second ?: Double.MAX_VALUE }.thenByDescending { it.first.priority })
-            .take(24)
+            .take(28)
             .toList()
+        val now = ZonedDateTime.now()
 
         return JSONObject().apply {
             put("intent", intent.name)
-            put("question", question.trim().take(700))
+            put("question", question.trim().take(900))
+            put("localDateTime", now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
             put("privacy", JSONObject().apply {
                 put("positionRounded", location != null)
                 put("personalNamesIncluded", false)
                 put("bookingNumbersIncluded", false)
+                put("gpsHistoryIncluded", false)
             })
             put("family", JSONObject().apply {
                 put("adults", 2)
@@ -55,6 +61,7 @@ object AssistantContext52 {
                 put("trafficDelayMinutes", snapshot.trafficDelayMin ?: JSONObject.NULL)
                 put("nextInstruction", snapshot.nextTitle)
                 put("nextDetail", snapshot.nextDetail)
+                put("tolls", JSONArray(snapshot.tolls.map { it.name }))
             })
             put("fuel", JSONObject().apply {
                 put("estimatedLitres", snapshot.fuelLitres)
@@ -65,6 +72,7 @@ object AssistantContext52 {
                         put("distanceAheadKm", fuel.distanceAheadKm)
                         put("detourKm", fuel.detourKm)
                         put("pricePerLitre", fuel.pricePerLitre ?: JSONObject.NULL)
+                        put("address", fuel.address)
                     }
                 } ?: JSONObject.NULL)
             })
@@ -75,7 +83,11 @@ object AssistantContext52 {
                 put("total", progress.total)
                 put("openItems", JSONArray(openItems))
             })
-            put("region", region.label)
+            put("region", JSONObject().apply {
+                put("name", region.label)
+                put("shortPlan", region.shortPlan)
+                put("logistics", region.logistics)
+            })
             put("destinations", JSONArray().apply {
                 destinationCandidates.forEach { (place, distance) ->
                     put(JSONObject().apply {
@@ -86,9 +98,21 @@ object AssistantContext52 {
                         put("tip", place.tip)
                         put("priority", place.priority)
                         put("distanceKm", distance ?: JSONObject.NULL)
+                        put("point", JSONObject().put("lat", place.point.lat).put("lon", place.point.lon))
                     })
                 }
             })
+            put("recentConversation", JSONArray().apply {
+                history.takeLast(4).forEach { (user, assistant) ->
+                    put(JSONObject().put("user", user.take(400)).put("assistant", assistant.take(500)))
+                }
+            })
+            put("allowedActions", JSONArray(listOf(
+                "open_destination_route",
+                "open_google_maps_search",
+                "propose_packing_items_with_confirmation",
+                "read_answer_aloud"
+            )))
         }
     }
 
