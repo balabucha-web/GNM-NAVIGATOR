@@ -111,8 +111,8 @@ fun ReisePilotApp(activity: MainActivity, snapshot: TripSnapshot) {
     ) { padding ->
         val pageModifier = Modifier.padding(padding)
         when (tab) {
-            AppTab.START -> VisualLiveScreen53(activity, snapshot, pageModifier)
-            AppTab.ROUTE -> MapScreen51(activity, snapshot, pageModifier)
+            AppTab.START -> VisualLiveScreen54(activity, snapshot, pageModifier)
+            AppTab.ROUTE -> MapScreen54(activity, snapshot, pageModifier)
             AppTab.DISCOVER -> VisualDiscoverScreen51(activity, snapshot, pageModifier)
             AppTab.PACKING -> PackingListScreen(activity, pageModifier) { tab = AppTab.MORE }
             AppTab.MORE -> MoreHubScreen51(activity, snapshot, pageModifier)
