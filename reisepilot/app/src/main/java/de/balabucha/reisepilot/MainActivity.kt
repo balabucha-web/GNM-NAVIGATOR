@@ -11,10 +11,14 @@ import androidx.core.content.ContextCompat
 
 class MainActivity : ComponentActivity() {
     private var snapshot by mutableStateOf(TripSnapshot())
+    private lateinit var realtime54: RealtimeDriveController54
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            intent?.getStringExtra("snapshot")?.let { snapshot = TripSnapshot.fromJson(it) }
+            intent?.getStringExtra("snapshot")?.let {
+                snapshot = TripSnapshot.fromJson(it)
+                if (::realtime54.isInitialized) realtime54.onSnapshot(snapshot)
+            }
             if (intent?.getBooleanExtra("appsChanged", false) == true) {
                 snapshot = snapshot.copy(lastUpdatedEpochMs = System.currentTimeMillis())
             }
@@ -24,6 +28,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         loadSnapshot()
+        realtime54 = RealtimeDriveController54(this)
+        realtime54.onSnapshot(snapshot)
         ContextCompat.registerReceiver(
             this,
             receiver,
@@ -36,10 +42,20 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         loadSnapshot()
+        if (::realtime54.isInitialized) {
+            realtime54.onSnapshot(snapshot)
+            realtime54.onResume()
+        }
+    }
+
+    override fun onPause() {
+        if (::realtime54.isInitialized) realtime54.onPause()
+        super.onPause()
     }
 
     override fun onDestroy() {
         unregisterReceiver(receiver)
+        if (::realtime54.isInitialized) realtime54.destroy()
         super.onDestroy()
     }
 
@@ -84,6 +100,10 @@ class MainActivity : ComponentActivity() {
 
     fun reloadTripConfig() {
         serviceAction(TripTrackingService.ACTION_RELOAD_CONFIG)
+    }
+
+    fun refreshRoadAhead54() {
+        if (::realtime54.isInitialized) realtime54.forceRefresh()
     }
 
     fun updateKeepScreenOn(tripActive: Boolean) {
