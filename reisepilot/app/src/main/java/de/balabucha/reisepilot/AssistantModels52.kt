@@ -5,14 +5,27 @@ import org.json.JSONObject
 
 enum class AssistantIntent52(val label: String, val hint: String) {
     WHAT_TODAY("Was passt heute?", "Drei passende Ziele für die aktuelle Situation"),
+    DAY_PLAN("Tagesplan", "Mehrere passende Stopps zu einem entspannten Ablauf verbinden"),
+    COMPARE("Ziele vergleichen", "Zwei Ziele nach Entfernung, Dauer und Familiennutzen vergleichen"),
     DRIVE_REVIEW("Fahrt bewerten", "Route, Verkehr, Tank und Ankunft zusammenfassen"),
     PAUSE_PLAN("Pause planen", "Einen vernünftigen nächsten Pausenzeitpunkt ableiten"),
     FUEL_PLAN("Tankstopp prüfen", "Tankreserve und vorhandenen Tankvorschlag bewerten"),
+    PARKING_HELP("Parken planen", "Für ein Ziel eine stressarme Ankunft und Parkplatzstrategie ableiten"),
     PACKING_CHECK("Packliste prüfen", "Sinnvolle Ergänzungen vorschlagen, nichts automatisch löschen"),
     CUSTOM("Eigene Frage", "Freie Frage mit den aktuellen Reisedaten")
 }
 
-enum class AssistantSource52 { OPENAI, LOCAL }
+enum class AssistantSource52 { OPENAI, OPENAI_DIRECT, LOCAL }
+
+enum class AssistantMode53(val label: String, val detail: String) {
+    LOCAL("Lokal", "Ohne Internet und ohne API-Kosten"),
+    DIRECT("Direkt", "Persönlicher Testmodus mit lokal verschlüsseltem API-Key"),
+    PROXY("Proxy", "Empfohlener Dauerbetrieb über eigenes Backend");
+
+    companion object {
+        fun fromStored(value: String?): AssistantMode53 = entries.firstOrNull { it.name == value } ?: LOCAL
+    }
+}
 
 data class AssistantSuggestion52(
     val title: String,
@@ -78,7 +91,7 @@ fun assistantAnswerFromJson52(root: JSONObject, source: AssistantSource52): Assi
     return AssistantAnswer52(
         headline = root.optString("headline").ifBlank { "ReisePilot-Empfehlung" },
         summary = root.optString("summary"),
-        suggestions = suggestions.take(5),
+        suggestions = suggestions.take(6),
         warnings = warnings.take(5),
         source = source
     )
