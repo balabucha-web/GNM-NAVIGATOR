@@ -3,6 +3,7 @@ package de.balabucha.reisepilot
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -25,14 +26,25 @@ class AssistantUserFlowTest {
         compose.onNodeWithTag("assistant-run", useUnmergedTree = true).performClick()
         compose.waitForIdle()
 
-        // Der lokale Assistent arbeitet synchron aus den App-Daten. Entscheidend für
-        // diesen UI-Test ist, dass die Auswertung die Oberfläche nicht beendet oder
-        // blockiert und anschließend alle Sicherheitsmodi erreichbar bleiben.
-        compose.onNodeWithTag("page-list:Reise-Assistent", useUnmergedTree = true).assertExists()
+        // Die Antwortkarten verlängern die LazyColumn dynamisch. Deshalb wie ein
+        // Nutzer schrittweise bis zum Einstellungsbereich scrollen, statt einen
+        // noch nicht komponierten Lazy-List-Knoten direkt anzuspringen.
+        val page = compose.onNodeWithTag("page-list:Reise-Assistent", useUnmergedTree = true)
+        var settingsFound = false
+        for (attempt in 0 until 14) {
+            settingsFound = compose.onAllNodes(hasTestTag("assistant-settings"), useUnmergedTree = true)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false)
+                .isNotEmpty()
+            if (settingsFound) break
+            page.performTouchInput { swipeUp() }
+            compose.waitForIdle()
+        }
+        assertTrue("AI-Einstellungen wurden nach dem Scrollen nicht gefunden", settingsFound)
+
         compose.onNodeWithTag("assistant-settings", useUnmergedTree = true)
-            .performScrollTo()
             .assertIsDisplayed()
             .performClick()
+        compose.waitForIdle()
 
         compose.onNodeWithText("Lokal", useUnmergedTree = true).assertExists()
         compose.onNodeWithText("Direkt", useUnmergedTree = true).assertExists()
