@@ -1,6 +1,7 @@
 package de.balabucha.reisepilot
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
@@ -94,16 +95,24 @@ class RealtimeDriveController54(private val activity: Activity) {
         activity.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
             activity.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
+    @SuppressLint("MissingPermission")
     private fun startLocations() {
         if (requesting || !hasLocationPermission()) return
         requesting = true
-        fused.requestLocationUpdates(request, callback, Looper.getMainLooper())
-            .addOnFailureListener {
-                requesting = false
-                RoadAheadStore54.state = RoadAheadStore54.state.copy(
-                    message = "Realtime-GPS nicht verfügbar: ${it.message.orEmpty().take(100)}"
-                )
-            }
+        runCatching {
+            fused.requestLocationUpdates(request, callback, Looper.getMainLooper())
+                .addOnFailureListener {
+                    requesting = false
+                    RoadAheadStore54.state = RoadAheadStore54.state.copy(
+                        message = "Realtime-GPS nicht verfügbar: ${it.message.orEmpty().take(100)}"
+                    )
+                }
+        }.onFailure {
+            requesting = false
+            RoadAheadStore54.state = RoadAheadStore54.state.copy(
+                message = "Standortberechtigung nicht verfügbar."
+            )
+        }
     }
 
     private fun stopLocations() {
