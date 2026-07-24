@@ -1,4 +1,4 @@
-name: Build ReisePilot 5.2 APK
+name: Build ReisePilot 5.3 APK
 
 on:
   push:
@@ -34,7 +34,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
-      - name: Verify ReisePilot 5.2 sources
+      - name: Verify ReisePilot 5.3 sources
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -42,38 +42,42 @@ jobs:
           required = {
               'Ui.kt': [
                   'PACKING("Packliste")',
-                  'VisualLiveScreen52',
+                  'VisualLiveScreen53',
                   'MapScreen51',
                   'VisualDiscoverScreen51',
                   'MoreHubScreen51',
                   'bottom = 86.dp',
               ],
-              'AssistantScreen52.kt': [
-                  'Reise-Assistent',
-                  'OPENAI-BACKEND BEREIT',
-                  'LOKALER MODUS',
+              'AssistantScreen53.kt': [
+                  'Sprechen & fragen',
+                  'AI-Modus und API-Key einrichten',
+                  'OPENAI DIREKT BEREIT',
                   'Zur Packliste hinzufügen?',
-                  'niemals ein OpenAI-API-Schlüssel',
+                  'TextToSpeech',
+                  'RecognizerIntent',
               ],
-              'AssistantClient52.kt': [
-                  'Authorization',
-                  'https',
-                  'assistantAnswerFromJson52',
+              'SecureApiKeyStore53.kt': [
+                  'AndroidKeyStore',
+                  'AES/GCM/NoPadding',
+                  'reisepilot_openai_test_key_v1',
+              ],
+              'DirectOpenAiClient53.kt': [
+                  'https://api.openai.com/v1/responses',
+                  'store',
+                  'json_schema',
+                  'OPENAI_DIRECT',
               ],
               'AssistantContext52.kt': [
                   'positionRounded',
                   'personalNamesIncluded',
+                  'recentConversation',
                   'Wetterdaten sind in diesem Build noch nicht angebunden',
               ],
               'AssistantOffline52.kt': [
                   'Lokale ReisePilot-Auswertung',
-                  'PACKING_CHECK',
-                  'FUEL_PLAN',
-              ],
-              'VisualScreens51.kt': [
-                  'TESTMODUS',
-                  'TRACKING AKTIV',
-                  'ab aktuellem Standort',
+                  'DAY_PLAN',
+                  'COMPARE',
+                  'PARKING_HELP',
               ],
               'MainActivity.kt': [
                   'FLAG_KEEP_SCREEN_ON',
@@ -85,13 +89,17 @@ jobs:
               for marker in markers:
                   assert marker in text, f'{name}: missing {marker}'
           version = Path('app/build.gradle.kts').read_text()
-          assert 'versionName = "5.2"' in version
-          assert 'versionCode = 24' in version
+          assert 'versionName = "5.3"' in version
+          assert 'versionCode = 25' in version
+          manifest = Path('app/src/main/AndroidManifest.xml').read_text()
+          assert 'android.permission.RECORD_AUDIO' in manifest
           backend = Path('backend/openai-proxy/server.mjs').read_text()
           assert "store: false" in backend
           assert "json_schema" in backend
           assert "OPENAI_API_KEY" in backend
-          print('PASS: ReisePilot 5.2 assistant sources present')
+          repo_text = '\n'.join(path.read_text(errors='ignore') for path in Path('.').rglob('*') if path.is_file() and '.git' not in path.parts)
+          assert 'sk-proj-' not in repo_text
+          print('PASS: ReisePilot 5.3 AI and voice sources present')
           PY
           node --check backend/openai-proxy/server.mjs
       - name: Check live sources and Wikimedia images
@@ -122,14 +130,14 @@ jobs:
           code=${PIPESTATUS[0]}
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           if [ "$code" -eq 0 ]; then
-            sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/ReisePilot-Live-v5.2.sha256
+            sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/ReisePilot-Live-v5.3.sha256
           fi
           exit 0
       - name: Upload build evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-v5.2-build-evidence
+          name: ReisePilot-v5.3-build-evidence
           path: |
             reisepilot/build.log
             reisepilot/app/build/reports/tests/testDebugUnitTest
@@ -139,10 +147,10 @@ jobs:
         if: steps.build.outputs.exit_code == '0'
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-Live-v5.2-APK
+          name: ReisePilot-Live-v5.3-APK
           path: |
             reisepilot/app/build/outputs/apk/debug/app-debug.apk
-            reisepilot/app/build/outputs/apk/debug/ReisePilot-Live-v5.2.sha256
+            reisepilot/app/build/outputs/apk/debug/ReisePilot-Live-v5.3.sha256
           if-no-files-found: error
       - name: Fail when validation failed
         if: steps.build.outputs.exit_code != '0'
