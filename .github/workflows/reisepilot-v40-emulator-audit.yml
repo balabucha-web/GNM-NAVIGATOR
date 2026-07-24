@@ -1,4 +1,4 @@
-name: ReisePilot 5.3 Emulator Audit
+name: ReisePilot 5.4 Emulator Audit
 
 on:
   push:
@@ -68,7 +68,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-v5.3-emulator-audit
+          name: ReisePilot-v5.4-emulator-audit
           path: |
             reisepilot/emulator-summary.txt
             reisepilot/emulator-compile.log
