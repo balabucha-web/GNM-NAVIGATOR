@@ -1,4 +1,4 @@
-name: Build ReisePilot 5.4 APK
+name: Build ReisePilot 5.5 APK
 
 on:
   push:
@@ -34,7 +34,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
-      - name: Verify ReisePilot 5.4 sources
+      - name: Verify ReisePilot 5.5 sources
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -42,11 +42,38 @@ jobs:
           required = {
               'Ui.kt': [
                   'PACKING("Packliste")',
-                  'VisualLiveScreen54',
+                  'HomeDashboard55',
                   'MapScreen54',
                   'VisualDiscoverScreen51',
                   'MoreHubScreen51',
                   'bottom = 86.dp',
+              ],
+              'HomeDashboard55.kt': [
+                  'Was kommt als Nächstes?',
+                  'Tank und Reichweite',
+                  'Wetter entlang der Route',
+                  'ReisePilot empfiehlt'.upper(),
+                  'Deine Reise',
+                  'ANKUNFTSMODUS',
+                  'Nachtansicht',
+                  'NativeTripMap54',
+                  'DestinationOfflinePhoto',
+                  'open-reise-assistant',
+              ],
+              'WeatherClient55.kt': [
+                  'https://api.open-meteo.com/v1/forecast',
+                  'precipitation_probability',
+                  'wind_speed_10m',
+                  'sunset',
+                  'Offline-Wetter',
+              ],
+              'HomeAssistant55.kt': [
+                  'Sprechen & fragen',
+                  'AI-Modus und API-Key',
+                  'DirectOpenAiClient53.ask',
+                  'AssistantClient52.ask',
+                  'SecureApiKeyStore53',
+                  'Zur Packliste hinzufügen?',
               ],
               'RealtimeDriveController54.kt': [
                   'PRIORITY_HIGH_ACCURACY, 1_000L',
@@ -59,7 +86,6 @@ jobs:
                   'ECHTZEIT · WAS KOMMT ALS NÄCHSTES?',
                   'Tankstellen abseits der Autobahn',
                   'Raststätten, Rastplätze und Parkplätze',
-                  'Zur Tankstelle navigieren',
               ],
               'LiveFuelOptions54.kt': [
                   'Tankerkönig',
@@ -85,12 +111,6 @@ jobs:
                   'AsyncImage',
                   'exact POI photo',
               ],
-              'AssistantScreen53.kt': [
-                  'Sprechen & fragen',
-                  'AI-Modus und API-Key einrichten',
-                  'OPENAI DIREKT BEREIT',
-                  'TextToSpeech',
-              ],
               'SecureApiKeyStore53.kt': [
                   'AndroidKeyStore',
                   'AES/GCM/NoPadding',
@@ -113,8 +133,8 @@ jobs:
               for marker in markers:
                   assert marker in text, f'{name}: missing {marker}'
           version = Path('app/build.gradle.kts').read_text()
-          assert 'versionName = "5.4"' in version
-          assert 'versionCode = 26' in version
+          assert 'versionName = "5.5"' in version
+          assert 'versionCode = 27' in version
           manifest = Path('app/src/main/AndroidManifest.xml').read_text()
           assert 'android.permission.RECORD_AUDIO' in manifest
           backend = Path('backend/openai-proxy/server.mjs').read_text()
@@ -123,7 +143,7 @@ jobs:
           assert "OPENAI_API_KEY" in backend
           repo_text = '\n'.join(path.read_text(errors='ignore') for path in Path('.').rglob('*') if path.is_file() and '.git' not in path.parts)
           assert 'sk-proj-' not in repo_text
-          print('PASS: ReisePilot 5.4 realtime route, fuel, roadside, images and AI sources present')
+          print('PASS: ReisePilot 5.5 visual live home, weather, route, fuel, roadside, images and AI sources present')
           PY
           node --check backend/openai-proxy/server.mjs
       - name: Check live sources and Wikimedia images
@@ -154,14 +174,14 @@ jobs:
           code=${PIPESTATUS[0]}
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           if [ "$code" -eq 0 ]; then
-            sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/ReisePilot-Live-v5.4.sha256
+            sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/ReisePilot-Live-v5.5.sha256
           fi
           exit 0
       - name: Upload build evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-v5.4-build-evidence
+          name: ReisePilot-v5.5-build-evidence
           path: |
             reisepilot/build.log
             reisepilot/app/build/reports/tests/testDebugUnitTest
@@ -171,10 +191,10 @@ jobs:
         if: steps.build.outputs.exit_code == '0'
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-Live-v5.4-APK
+          name: ReisePilot-Live-v5.5-APK
           path: |
             reisepilot/app/build/outputs/apk/debug/app-debug.apk
-            reisepilot/app/build/outputs/apk/debug/ReisePilot-Live-v5.4.sha256
+            reisepilot/app/build/outputs/apk/debug/ReisePilot-Live-v5.5.sha256
           if-no-files-found: error
       - name: Fail when validation failed
         if: steps.build.outputs.exit_code != '0'
