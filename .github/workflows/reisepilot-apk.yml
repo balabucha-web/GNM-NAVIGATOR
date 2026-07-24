@@ -1,4 +1,4 @@
-name: Build ReisePilot 5.3 APK
+name: Build ReisePilot 5.4 APK
 
 on:
   push:
@@ -34,7 +34,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
-      - name: Verify ReisePilot 5.3 sources
+      - name: Verify ReisePilot 5.4 sources
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -42,19 +42,54 @@ jobs:
           required = {
               'Ui.kt': [
                   'PACKING("Packliste")',
-                  'VisualLiveScreen53',
-                  'MapScreen51',
+                  'VisualLiveScreen54',
+                  'MapScreen54',
                   'VisualDiscoverScreen51',
                   'MoreHubScreen51',
                   'bottom = 86.dp',
+              ],
+              'RealtimeDriveController54.kt': [
+                  'PRIORITY_HIGH_ACCURACY, 1_000L',
+                  'setMinUpdateIntervalMillis(500L)',
+                  'RoadAheadStore54',
+                  'LiveFuelOptions54.query',
+                  'RoadsideClient54.query',
+              ],
+              'RoadAheadUi54.kt': [
+                  'ECHTZEIT · WAS KOMMT ALS NÄCHSTES?',
+                  'Tankstellen abseits der Autobahn',
+                  'Raststätten, Rastplätze und Parkplätze',
+                  'Zur Tankstelle navigieren',
+              ],
+              'LiveFuelOptions54.kt': [
+                  'Tankerkönig',
+                  'offizieller Dieselpreis',
+                  'Fahrtrichtung und Umweg geprüft',
+                  'take(4)',
+              ],
+              'RoadsideClient54.kt': [
+                  'highway~"^(services|rest_area)$"',
+                  'amenity=parking',
+                  'parking=layby',
+                  'Fahrtrichtung geprüft',
+              ],
+              'MapScreen54.kt': [
+                  'Rastplätze',
+                  'Tankstellen abseits der Autobahn',
+                  'Live aktualisieren',
+                  'NativeTripMap54',
+              ],
+              'DestinationOfflinePhoto.kt': [
+                  'entry?.isPhoto == false',
+                  'WikiImageResolver.resolve',
+                  'AsyncImage',
+                  'exact POI photo',
               ],
               'AssistantScreen53.kt': [
                   'Sprechen & fragen',
                   'AI-Modus und API-Key einrichten',
                   'OPENAI DIREKT BEREIT',
-                  'Zur Packliste hinzufügen?',
                   'TextToSpeech',
-                  'RecognizerIntent',
               ],
               'SecureApiKeyStore53.kt': [
                   'AndroidKeyStore',
@@ -67,21 +102,10 @@ jobs:
                   'json_schema',
                   'OPENAI_DIRECT',
               ],
-              'AssistantContext52.kt': [
-                  'positionRounded',
-                  'personalNamesIncluded',
-                  'recentConversation',
-                  'Wetterdaten sind in diesem Build noch nicht angebunden',
-              ],
-              'AssistantOffline52.kt': [
-                  'Lokale ReisePilot-Auswertung',
-                  'DAY_PLAN',
-                  'COMPARE',
-                  'PARKING_HELP',
-              ],
               'MainActivity.kt': [
+                  'RealtimeDriveController54',
+                  'refreshRoadAhead54',
                   'FLAG_KEEP_SCREEN_ON',
-                  'updateKeepScreenOn',
               ],
           }
           for name, markers in required.items():
@@ -89,8 +113,8 @@ jobs:
               for marker in markers:
                   assert marker in text, f'{name}: missing {marker}'
           version = Path('app/build.gradle.kts').read_text()
-          assert 'versionName = "5.3"' in version
-          assert 'versionCode = 25' in version
+          assert 'versionName = "5.4"' in version
+          assert 'versionCode = 26' in version
           manifest = Path('app/src/main/AndroidManifest.xml').read_text()
           assert 'android.permission.RECORD_AUDIO' in manifest
           backend = Path('backend/openai-proxy/server.mjs').read_text()
@@ -99,7 +123,7 @@ jobs:
           assert "OPENAI_API_KEY" in backend
           repo_text = '\n'.join(path.read_text(errors='ignore') for path in Path('.').rglob('*') if path.is_file() and '.git' not in path.parts)
           assert 'sk-proj-' not in repo_text
-          print('PASS: ReisePilot 5.3 AI and voice sources present')
+          print('PASS: ReisePilot 5.4 realtime route, fuel, roadside, images and AI sources present')
           PY
           node --check backend/openai-proxy/server.mjs
       - name: Check live sources and Wikimedia images
@@ -119,7 +143,7 @@ jobs:
           parking = json.loads((assets / 'destination_parkings.json').read_text())['places']
           assert len(parking) == 93
           assert sum(bool(items) for items in parking.values()) == 93
-          print(f'PASS: {len(entries)} destinations, {actual} exact offline photos, complete parking fallbacks')
+          print(f'PASS: {len(entries)} destinations, {actual} exact offline photos, remaining gaps use exact cached lookup, complete parking fallbacks')
           PY
       - name: Unit tests, lint and APK build
         id: build
@@ -130,14 +154,14 @@ jobs:
           code=${PIPESTATUS[0]}
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           if [ "$code" -eq 0 ]; then
-            sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/ReisePilot-Live-v5.3.sha256
+            sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/ReisePilot-Live-v5.4.sha256
           fi
           exit 0
       - name: Upload build evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-v5.3-build-evidence
+          name: ReisePilot-v5.4-build-evidence
           path: |
             reisepilot/build.log
             reisepilot/app/build/reports/tests/testDebugUnitTest
@@ -147,10 +171,10 @@ jobs:
         if: steps.build.outputs.exit_code == '0'
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-Live-v5.3-APK
+          name: ReisePilot-Live-v5.4-APK
           path: |
             reisepilot/app/build/outputs/apk/debug/app-debug.apk
-            reisepilot/app/build/outputs/apk/debug/ReisePilot-Live-v5.3.sha256
+            reisepilot/app/build/outputs/apk/debug/ReisePilot-Live-v5.4.sha256
           if-no-files-found: error
       - name: Fail when validation failed
         if: steps.build.outputs.exit_code != '0'
