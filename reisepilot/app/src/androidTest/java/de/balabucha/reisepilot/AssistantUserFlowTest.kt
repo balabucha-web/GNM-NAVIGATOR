@@ -23,7 +23,13 @@ class AssistantUserFlowTest {
         compose.onNodeWithText("LOKALER MODUS").assertIsDisplayed()
         compose.onNodeWithTag("assistant-voice", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithTag("assistant-run", useUnmergedTree = true).performClick()
+        compose.waitForIdle()
 
+        val page = compose.onNodeWithTag("page-list:Reise-Assistent", useUnmergedTree = true)
+        repeat(3) {
+            page.performTouchInput { swipeUp() }
+            compose.waitForIdle()
+        }
         compose.waitUntil(5_000) {
             compose.onAllNodes(hasText("Drei passende Ziele"), useUnmergedTree = true)
                 .fetchSemanticsNodes(atLeastOneRootRequired = false)
