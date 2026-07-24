@@ -83,8 +83,10 @@ object AssistantOffline52 {
         val candidates = regionPlaces(snapshot)
         val selected = mutableListOf<TravelPlace>()
         val preferredKinds = listOf(PlaceKind.HIGHLIGHT, PlaceKind.FAMILY, PlaceKind.QUICK, PlaceKind.SHOPPING)
-        preferredKinds.forEach { kind -> candidates.firstOrNull { it.kind == kind && it !in selected }?.let(selected::add) }
-        candidates.filterNot(selected::contains).take(3 - selected.size).forEach(selected::add)
+        preferredKinds.forEach { kind ->
+            if (selected.size < 3) candidates.firstOrNull { it.kind == kind && it !in selected }?.let(selected::add)
+        }
+        if (selected.size < 3) candidates.filterNot(selected::contains).take(3 - selected.size).forEach(selected::add)
         val labels = listOf("Vormittag", "Nachmittag", "Rückweg")
         return AssistantAnswer52(
             headline = "Entspannter Tagesplan",
