@@ -15,9 +15,11 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import coil3.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -114,6 +116,11 @@ internal object DestinationOfflinePhotoCatalog {
     }
 }
 
+/**
+ * Always paints an instant offline preview. For the remaining illustration-only
+ * entries, an exact POI photo is resolved once and cached locally. Wrong generic
+ * city images are still rejected by WikiImageResolver.
+ */
 @Composable
 internal fun DestinationOfflinePhoto(place: TravelPlace, modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -125,12 +132,26 @@ internal fun DestinationOfflinePhoto(place: TravelPlace, modifier: Modifier = Mo
             DestinationOfflinePhotoCatalog.loadSprite(context.applicationContext, place.region)
         }
     }
+    val exactPhoto by produceState<String?>(initialValue = null, place.title, entry?.isPhoto) {
+        value = if (entry?.isPhoto == false) {
+            runCatching { WikiImageResolver.resolve(context.applicationContext, place) }.getOrNull()
+        } else null
+    }
+
     Box(modifier) {
         DestinationArtwork(place.region, Modifier.fillMaxSize())
         if (entry != null && sprite != null) {
             Canvas(Modifier.fillMaxSize()) {
                 DestinationOfflinePhotoCatalog.draw(this, sprite!!, entry)
             }
+        }
+        exactPhoto?.let { photo ->
+            AsyncImage(
+                model = photo,
+                contentDescription = place.title,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
         }
     }
 }
