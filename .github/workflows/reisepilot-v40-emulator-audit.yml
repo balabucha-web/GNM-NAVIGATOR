@@ -83,6 +83,9 @@ jobs:
             reisepilot/emulator-start.xml
             reisepilot/emulator-start-screen.png
             reisepilot/emulator-after-monkey.png
+            reisepilot/driver-audit.log
+            reisepilot/driver-*.png
+            reisepilot/driver-*.xml
             reisepilot/packing-responsive-*.log
             reisepilot/packing-responsive-*.png
             reisepilot/monkey.log
