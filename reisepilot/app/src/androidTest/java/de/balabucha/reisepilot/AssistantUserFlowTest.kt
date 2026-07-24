@@ -13,7 +13,7 @@ class AssistantUserFlowTest {
     val compose = createAndroidComposeRule<MainActivity>()
 
     @Test
-    fun assistantWorksOfflineWithoutShippingAnApiKey() {
+    fun assistantWorksOfflineAndOffersVoiceAndSecureSetup() {
         compose.onNodeWithTag("open-reise-assistant", useUnmergedTree = true)
             .assertIsDisplayed()
             .performClick()
@@ -21,12 +21,18 @@ class AssistantUserFlowTest {
 
         compose.onNodeWithText("Reise-Assistent").assertIsDisplayed()
         compose.onNodeWithText("LOKALER MODUS").assertIsDisplayed()
+        compose.onNodeWithTag("assistant-voice", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithTag("assistant-run", useUnmergedTree = true).performClick()
-        compose.waitForIdle()
 
-        compose.onNodeWithTag("page-list:Reise-Assistent", useUnmergedTree = true)
-            .performScrollToNode(hasText("Drei passende Ziele"))
-        compose.onNodeWithText("Drei passende Ziele", useUnmergedTree = true).assertIsDisplayed()
-        compose.onNodeWithText("Lokal", useUnmergedTree = true).assertExists()
+        compose.waitUntil(5_000) {
+            compose.onAllNodes(hasText("Drei passende Ziele"), useUnmergedTree = true)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false)
+                .isNotEmpty()
+        }
+        compose.onNodeWithText("Drei passende Ziele").assertIsDisplayed()
+
+        compose.onNodeWithTag("assistant-settings", useUnmergedTree = true).performScrollTo().performClick()
+        compose.onNodeWithText("Direkt", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Proxy", useUnmergedTree = true).assertExists()
     }
 }
