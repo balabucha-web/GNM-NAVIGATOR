@@ -91,4 +91,24 @@ home = home.replace('state.nearbyMode && !state.active', 'state.nearbyMode')
 home = home.replace('!(state.nearbyMode)', '!state.nearbyMode')
 home_path.write_text(home, encoding="utf-8")
 
+driver_path = root / "scripts/run_emulator_audit.sh"
+driver = driver_path.read_text(encoding="utf-8")
+driver = replace_once(
+    driver,
+    '''if click_text_with_scroll "Testfahrt starten"; then
+  echo "DRIVER start control activated after current-leg review" | tee -a driver-audit.log
+else
+  echo "DRIVER start control not found after scrolling" | tee -a driver-audit.log
+  DRIVER_CODE=1
+fi''',
+    '''if click_text_with_scroll "Testfahrt starten" || click_text_with_scroll "Reise starten"; then
+  echo "DRIVER start control activated after current-leg review" | tee -a driver-audit.log
+else
+  echo "DRIVER start control not found after scrolling" | tee -a driver-audit.log
+  DRIVER_CODE=1
+fi''',
+    "date-aware driver start"
+)
+driver_path.write_text(driver, encoding="utf-8")
+
 print("PASS: nearby live data remains active until a real route is available")
