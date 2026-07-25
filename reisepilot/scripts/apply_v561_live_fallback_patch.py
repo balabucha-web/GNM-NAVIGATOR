@@ -101,13 +101,22 @@ else
   echo "DRIVER start control not found after scrolling" | tee -a driver-audit.log
   DRIVER_CODE=1
 fi''',
-    '''if click_text_with_scroll "Testfahrt starten" || click_text_with_scroll "Reise starten"; then
+    '''STARTED=0
+for _ in 0 1 2 3 4; do
+  if click_text "Testfahrt starten" || click_text "Reise starten"; then
+    STARTED=1
+    break
+  fi
+  "$ADB_BIN" shell input swipe 430 1500 430 650 550 >/dev/null 2>&1 || true
+  sleep 1
+done
+if [ "$STARTED" -eq 1 ]; then
   echo "DRIVER start control activated after current-leg review" | tee -a driver-audit.log
 else
   echo "DRIVER start control not found after scrolling" | tee -a driver-audit.log
   DRIVER_CODE=1
 fi''',
-    "date-aware driver start"
+    "single-pass date-aware driver start"
 )
 driver_path.write_text(driver, encoding="utf-8")
 
