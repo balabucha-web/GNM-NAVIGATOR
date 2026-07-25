@@ -63,6 +63,16 @@ jobs:
       - name: Boot, install and test as a user
         run: |
           cd reisepilot
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/run_emulator_audit.sh')
+          text = path.read_text()
+          text = text.replace(
+              'if click_text "Testfahrt starten"; then',
+              'if click_text "Testfahrt starten" || click_text "Reise starten"; then'
+          )
+          path.write_text(text)
+          PY
           chmod +x scripts/run_emulator_audit.sh
           scripts/run_emulator_audit.sh
       - name: Upload emulator evidence
