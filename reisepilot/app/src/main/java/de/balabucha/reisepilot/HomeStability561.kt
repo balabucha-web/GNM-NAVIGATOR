@@ -17,6 +17,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.util.Locale
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 internal fun preferredStage561(snapshot: TripSnapshot): Stage {
@@ -186,7 +187,7 @@ internal fun NextThings561(
             label = if (nearby) "Raststätte / Rastplatz in der Nähe" else "Nächste Raststätte",
             title = service?.name ?: if (roadState.loadingRoadside) "Suche läuft" else "Noch kein Treffer",
             value = service?.distanceAheadKm?.let(::distanceKm54) ?: "–",
-            detail = service?.let { if (nearby) "Entfernung vom Standort${featureText55(it)}" else "${travelTime55(it.distanceAheadKm, roadState.speedKmh)}${featureText55(it)}" }
+            detail = service?.let { if (nearby) "Entfernung vom Standort${featureText561(it)}" else "${travelTime561(it.distanceAheadKm, roadState.speedKmh)}${featureText561(it)}" }
                 ?: roadState.roadsideMessage.ifBlank { "OpenStreetMap wird geprüft." },
             accent = Color(0xFF6A4BBC),
             night = night,
@@ -196,7 +197,7 @@ internal fun NextThings561(
             label = if (nearby) "Parkplatz in der Nähe" else "Nächster Parkplatz",
             title = parking?.name ?: if (roadState.loadingRoadside) "Suche läuft" else "Noch kein Treffer",
             value = parking?.distanceAheadKm?.let(::distanceKm54) ?: "–",
-            detail = parking?.let { if (nearby) "Entfernung vom Standort${featureText55(it)}" else "${travelTime55(it.distanceAheadKm, roadState.speedKmh)}${featureText55(it)}" }
+            detail = parking?.let { if (nearby) "Entfernung vom Standort${featureText561(it)}" else "${travelTime561(it.distanceAheadKm, roadState.speedKmh)}${featureText561(it)}" }
                 ?: roadState.roadsideMessage.ifBlank { "Parkplatzdaten werden geprüft." },
             accent = Teal,
             night = night,
@@ -251,6 +252,18 @@ private fun CompactNext561(
         }
     }
 }
+
+private fun travelTime561(distanceKm: Double, speedKmh: Int?): String {
+    val speed = (speedKmh ?: 90).coerceIn(35, 130)
+    val minutes = ceil(distanceKm / speed * 60.0).toInt().coerceAtLeast(1)
+    return if (minutes < 60) "ca. $minutes Min." else "ca. ${minutes / 60} Std. ${minutes % 60} Min."
+}
+
+private fun featureText561(stop: RoadsideStop54): String = buildList {
+    if (stop.hasToilets) add("WC")
+    if (stop.hasFood) add("Essen")
+    if (stop.hasFuel) add("Tanken")
+}.takeIf { it.isNotEmpty() }?.joinToString(prefix = " · ", separator = " · ").orEmpty()
 
 private fun minuteText561(minutes: Long): String = when {
     minutes < 60 -> "$minutes Min."
