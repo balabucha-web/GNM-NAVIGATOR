@@ -3,6 +3,8 @@ name: Build ReisePilot 5.7 Build31
 on:
   push:
     branches: ["reisepilot-build31"]
+  pull_request:
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
