@@ -15,28 +15,6 @@ replacements = [
     val settings = remember { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }'''
     ),
     (
-        '''                    FilterChip(
-                        selected = night,
-                        onClick = { manualNight = !manualNight },
-                        label = { Text(if (night) "Nachtansicht" else "Tagansicht") }
-                    )''',
-        '''                    Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
-                        FilledTonalButton(
-                            onClick = {
-                                assistantIntent = AssistantIntent52.WHAT_TODAY
-                                assistantOpen = true
-                            },
-                            modifier = Modifier.heightIn(min = 42.dp).testTag("open-reise-assistant"),
-                            contentPadding = PaddingValues(horizontal = 13.dp)
-                        ) { Text("AI", fontWeight = FontWeight.Black) }
-                        FilterChip(
-                            selected = night,
-                            onClick = { manualNight = !manualNight },
-                            label = { Text(if (night) "Nacht" else "Tag") }
-                        )
-                    }'''
-    ),
-    (
         '''            item {
                 HomeHero55(
                     activity = activity,
@@ -66,14 +44,6 @@ replacements = [
                     onOpenMap = { onOpenTab(AppTab.ROUTE) }
                 )
             }
-            item {
-                CurrentLegCard561(
-                    snapshot = displaySnapshot,
-                    stage = displayStage,
-                    preview = preview.route,
-                    night = night
-                )
-            }
             if (!hasNearbyPermission && !snapshot.active) {
                 item {
                     HomeCard55(night) {
@@ -96,51 +66,30 @@ replacements = [
             if (!snapshot.active && mode == HomeMode55.PRE_TRIP) {'''
     ),
     (
-        'HomeSectionTitle55("Fahrt auf einen Blick", if (snapshot.active) dataAge55(roadState.dataUpdatedAt) else "Reisevorbereitung", primaryText, secondaryText)',
-        'HomeSectionTitle55("Aktuelle Etappe", if (snapshot.active) dataAge55(roadState.dataUpdatedAt) else "bis zum nächsten Ziel", primaryText, secondaryText)'
-    ),
-    (
-        'HomeMetrics55(snapshot, roadState, openPacking, night)',
-        'HomeMetrics561(snapshot, roadState, openPacking, displayStage, preview.route, night)'
-    ),
-    (
         'HomeSectionTitle55("Was kommt als Nächstes?", "in Fahrtrichtung", primaryText, secondaryText)',
-        'HomeSectionTitle55("Live in deiner Umgebung", roadState.scopeLabel, primaryText, secondaryText)'
+        'HomeSectionTitle55("Was kommt als Nächstes?", roadState.scopeLabel, primaryText, secondaryText)'
     ),
     (
-        '''                NextThings55(
-                    roadState = roadState,
-                    snapshot = snapshot,
-                    night = night,
-                    onOpen = { roadAheadOpen = true },
-                    onPacking = { onOpenTab(AppTab.PACKING) }
-                )''',
-        '''                NextThings561(
-                    roadState = roadState,
-                    snapshot = snapshot,
-                    night = night,
-                    onOpen = { roadAheadOpen = true },
-                    onPacking = { onOpenTab(AppTab.PACKING) }
-                )'''
+        '''    val fuel = roadState.nextFuel
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(end = 8.dp)) {
+        if (snapshot.active) {''',
+        '''    val fuel = roadState.nextFuel
+    val showLive = snapshot.active || roadState.nearbyMode || roadState.loadingFuel || roadState.loadingRoadside ||
+        roadState.fuelOptions.isNotEmpty() || roadState.roadsideStops.isNotEmpty()
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(end = 8.dp)) {
+        if (showLive) {'''
     ),
     (
-        'contentPadding = PaddingValues(start = 14.dp, top = 14.dp, end = 14.dp, bottom = if (snapshot.active) 190.dp else 108.dp),',
-        'contentPadding = PaddingValues(start = 14.dp, top = 14.dp, end = 14.dp, bottom = if (snapshot.active) 150.dp else 102.dp),'
+        'detail = service?.let { travelTime55(it.distanceAheadKm, roadState.speedKmh) + featureText55(it) }.orEmpty(),',
+        'detail = service?.let { if (roadState.nearbyMode && !snapshot.active) "${distanceKm54(it.distanceAheadKm)} entfernt${featureText55(it)}" else travelTime55(it.distanceAheadKm, roadState.speedKmh) + featureText55(it) }.orEmpty(),'
     ),
     (
-        '''
-        ExtendedFloatingActionButton(
-            onClick = {
-                assistantIntent = AssistantIntent52.WHAT_TODAY
-                assistantOpen = true
-            },
-            icon = { Text("AI", fontWeight = FontWeight.Black) },
-            text = { Text("Reise-Assistent", fontWeight = FontWeight.Bold) },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp).testTag("open-reise-assistant"),
-            containerColor = if (night) Color(0xFF1F6F8B) else Navy,
-            contentColor = Color.White
-        )''',
-        ''
+        'detail = parking?.let { travelTime55(it.distanceAheadKm, roadState.speedKmh) + featureText55(it) }.orEmpty(),',
+        'detail = parking?.let { if (roadState.nearbyMode && !snapshot.active) "${distanceKm54(it.distanceAheadKm)} entfernt${featureText55(it)}" else travelTime55(it.distanceAheadKm, roadState.speedKmh) + featureText55(it) }.orEmpty(),'
+    ),
+    (
+        'detail = fuel?.let { "${distanceKm54(it.distanceAheadKm)} · ${String.format(Locale.GERMANY, "%.1f km Umweg", it.detourKm)}" }.orEmpty(),',
+        'detail = fuel?.let { if (roadState.nearbyMode && !snapshot.active) "${distanceKm54(it.distanceAheadKm)} entfernt" else "${distanceKm54(it.distanceAheadKm)} · ${String.format(Locale.GERMANY, "%.1f km Umweg", it.detourKm)}" }.orEmpty(),'
     ),
     (
         'Text("Nächste Punkte in Fahrtrichtung", style = MaterialTheme.typography.headlineSmall)',
@@ -174,16 +123,16 @@ replacements = [
 
 changed = False
 for old, new in replacements:
-    if new and new in text:
+    if new in text:
         continue
     if old not in text:
-        raise SystemExit(f"HomeDashboard55 patch marker missing: {old[:120]}")
+        raise SystemExit(f"HomeDashboard55 patch marker missing: {old[:100]}")
     text = text.replace(old, new, 1)
     changed = True
 
 if changed:
     path.write_text(text, encoding="utf-8")
-    print("PASS: HomeDashboard55 patched for 5.6.1 current-leg and ordered live layout")
+    print("PASS: HomeDashboard55 patched for immediate nearby live data")
 else:
     print("PASS: HomeDashboard55 already patched")
 
