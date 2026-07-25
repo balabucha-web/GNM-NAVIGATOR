@@ -30,9 +30,10 @@ fun CompactDiagnostics51(
         statuses = emptyList()
         checking = true
         checkJob = scope.launch {
-            statuses = LiveDataDiagnostics.check(activity.applicationContext) { partial ->
-                statuses = partial
-            }
+            statuses = LiveDataDiagnostics.check(
+                context = activity.applicationContext,
+                onProgress = { partial -> statuses = partial }
+            )
             checking = false
         }
     }
