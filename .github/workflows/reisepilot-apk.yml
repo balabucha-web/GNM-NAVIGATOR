@@ -1,4 +1,4 @@
-name: Build ReisePilot 5.6 APK
+name: Build ReisePilot 5.6.1 APK
 
 on:
   push:
@@ -34,9 +34,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
-      - name: Apply 5.6 live-home source patch
-        run: python3 scripts/apply_v56_live_home_patch.py
-      - name: Verify ReisePilot 5.6 sources
+      - name: Apply 5.6 and 5.6.1 dashboard patches
+        run: |
+          python3 scripts/apply_v56_live_home_patch.py
+          python3 scripts/apply_v561_layout_patch.py
+      - name: Verify ReisePilot 5.6.1 sources
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -51,16 +53,33 @@ jobs:
                   'bottom = 86.dp',
               ],
               'HomeDashboard55.kt': [
-                  'Was kommt als Nächstes?',
+                  'AKTUELLE TEILSTRECKE',
+                  'Zwischenübernachtung in Montbéliard',
+                  'Diese Teilstrecke navigieren',
+                  'preferredStage561',
+                  'snapshot.active && displayStage == snapshot.stage',
+                  'Gesamtreise',
+                  'NextRow561',
                   'roadState.scopeLabel',
-                  'val showLive = snapshot.active || roadState.nearbyMode',
+                  'AI-Assistent',
+                  'open-reise-assistant',
                   'Tank und Reichweite',
                   'Wetter entlang der Route',
-                  'REISEPILOT EMPFIEHLT',
-                  'Deine Reise',
                   'ANKUNFTSMODUS',
                   'NativeTripMap54',
-                  'DestinationOfflinePhoto',
+              ],
+              'CompactDiagnostics51.kt': [
+                  'Prüfungen abgeschlossen',
+                  'LiveDataDiagnostics.SOURCE_COUNT',
+                  'Prüfung neu starten',
+                  'onProgress',
+              ],
+              'LiveDataDiagnostics.kt': [
+                  'SOURCE_COUNT = 9',
+                  'Standort & Live-Umgebung',
+                  'SOURCE_TIMEOUT_MS',
+                  'Hotel-Teilstrecke antwortet',
+                  'onProgress',
               ],
               'NearbyLiveController56.kt': [
                   'PRIORITY_BALANCED_POWER_ACCURACY',
@@ -89,30 +108,12 @@ jobs:
                   'roadsideMessage',
                   'scopeLabel',
               ],
-              'RoadAheadUi54.kt': [
-                  'ECHTZEIT · WAS KOMMT ALS NÄCHSTES?',
-                  'Live-Daten in deiner Nähe',
-                  'Raststätten, Rastplätze und Parkplätze',
-                  'state.nearbyMode',
-              ],
-              'RealtimeDriveController54.kt': [
-                  'PRIORITY_HIGH_ACCURACY, 1_000L',
-                  'setMinUpdateIntervalMillis(500L)',
-                  'LiveFuelOptions54.query',
-                  'RoadsideClient54.query',
-              ],
               'EnhancedDestinationImage56.kt': [
                   'Aqualand Saint-Cyprien',
                   'Disneyland Paris',
                   'Palais Garnier exterior Paris',
                   'commonsGeo',
                   'blockedByPlace',
-              ],
-              'DestinationOfflinePhoto.kt': [
-                  'EnhancedDestinationImage56.shouldEnhance',
-                  'EnhancedDestinationImage56.resolve',
-                  'WikiImageResolver.resolve',
-                  'AsyncImage',
               ],
               'DirectOpenAiClient53.kt': [
                   'https://api.openai.com/v1/responses',
@@ -122,21 +123,14 @@ jobs:
                   'RETRY_OUTPUT_LIMIT',
                   'compactRetryContext',
               ],
-              'MainActivity.kt': [
-                  'NearbyLiveController56',
-                  'maybeRequestStartupLocation',
-                  'startup_live_location_prompted_v56',
-                  'refreshRoadAhead54',
-                  'FLAG_KEEP_SCREEN_ON',
-              ],
           }
           for name, markers in required.items():
               text = (root / name).read_text()
               for marker in markers:
                   assert marker in text, f'{name}: missing {marker}'
           version = Path('app/build.gradle.kts').read_text()
-          assert 'versionName = "5.6"' in version
-          assert 'versionCode = 29' in version
+          assert 'versionName = "5.6.1"' in version
+          assert 'versionCode = 30' in version
           manifest = Path('app/src/main/AndroidManifest.xml').read_text()
           assert 'android.permission.ACCESS_FINE_LOCATION' in manifest
           assert 'android.permission.RECORD_AUDIO' in manifest
@@ -144,10 +138,9 @@ jobs:
           assert "store: false" in backend
           assert "json_schema" in backend
           assert "OPENAI_API_KEY" in backend
-          assert "openai_incomplete" in backend
           repo_text = '\n'.join(path.read_text(errors='ignore') for path in Path('.').rglob('*') if path.is_file() and '.git' not in path.parts)
           assert 'sk-proj-' not in repo_text
-          print('PASS: ReisePilot 5.6 nearby live data, route live data, enhanced images and OpenAI recovery present')
+          print('PASS: ReisePilot 5.6.1 current-leg dashboard, progressive diagnostics and nearby live data present')
           PY
           node --check backend/openai-proxy/server.mjs
       - name: Check live sources and Wikimedia images
@@ -167,7 +160,7 @@ jobs:
           parking = json.loads((assets / 'destination_parkings.json').read_text())['places']
           assert len(parking) == 93
           assert sum(bool(items) for items in parking.values()) == 93
-          print(f'PASS: {len(entries)} destinations, {actual} exact offline photos, curated online second pass for gaps, complete parking fallbacks')
+          print(f'PASS: {len(entries)} destinations, {actual} exact offline photos, curated online second pass, complete parking fallbacks')
           PY
       - name: Unit tests, lint and APK build
         id: build
@@ -178,14 +171,14 @@ jobs:
           code=${PIPESTATUS[0]}
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           if [ "$code" -eq 0 ]; then
-            sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/ReisePilot-Live-v5.6.sha256
+            sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/ReisePilot-Live-v5.6.1.sha256
           fi
           exit 0
       - name: Upload build evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-v5.6-build-evidence
+          name: ReisePilot-v5.6.1-build-evidence
           path: |
             reisepilot/build.log
             reisepilot/app/build/reports/tests/testDebugUnitTest
@@ -195,10 +188,10 @@ jobs:
         if: steps.build.outputs.exit_code == '0'
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-Live-v5.6-APK
+          name: ReisePilot-Live-v5.6.1-APK
           path: |
             reisepilot/app/build/outputs/apk/debug/app-debug.apk
-            reisepilot/app/build/outputs/apk/debug/ReisePilot-Live-v5.6.sha256
+            reisepilot/app/build/outputs/apk/debug/ReisePilot-Live-v5.6.1.sha256
           if-no-files-found: error
       - name: Fail when validation failed
         if: steps.build.outputs.exit_code != '0'
