@@ -1,0 +1,39 @@
+name: Build ReisePilot 5.7 Build31
+
+on:
+  push:
+    branches: ["reisepilot-build31"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.5.0"
+      - name: Inspect project archive
+        run: |
+          ls -lh project.zip
+          unzip -t project.zip
+      - name: Extract project
+        run: |
+          mkdir project
+          unzip -q project.zip -d project
+          sed -i '/import androidx.compose.foundation.layout.Box/a import androidx.compose.foundation.layout.matchParentSize' project/app/src/main/java/de/balabucha/reisepilot/DestinationRepository.kt
+      - name: Build debug APK
+        run: cd project && gradle :app:assembleDebug --stacktrace
+      - name: Collect APK
+        run: cp project/app/build/outputs/apk/debug/app-debug.apk ReisePilot-Live-v5.7-Build31.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ReisePilot-Live-v5.7-Build31
+          path: ReisePilot-Live-v5.7-Build31.apk
+          if-no-files-found: error
