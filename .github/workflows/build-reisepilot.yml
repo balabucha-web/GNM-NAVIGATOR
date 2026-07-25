@@ -21,9 +21,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "9.5.0"
-      - name: Inspect project archive
+      - name: Rebuild project archive
         run: |
-          ls -lh project.zip
+          cat project.b64.part-00 project.b64.part-01 project.b64.part-02 project.b64.part-03a project.b64.part-03b project.b64.part-03c project.b64.part-04 > project.b64
+          base64 -d project.b64 > project.zip
           unzip -t project.zip
       - name: Extract project
         run: |
