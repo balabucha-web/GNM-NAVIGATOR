@@ -1,4 +1,4 @@
-name: ReisePilot 5.5 Emulator Audit
+name: ReisePilot 5.6 Emulator Audit
 
 on:
   push:
@@ -38,6 +38,7 @@ jobs:
         run: |
           set -o pipefail
           cd reisepilot
+          python3 scripts/apply_v56_live_home_patch.py
           echo 'PHASE compile started' > emulator-summary.txt
           gradle :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace 2>&1 | tee emulator-compile.log
           echo 'PHASE compile passed' >> emulator-summary.txt
@@ -68,7 +69,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-v5.5-emulator-audit
+          name: ReisePilot-v5.6-emulator-audit
           path: |
             reisepilot/emulator-summary.txt
             reisepilot/emulator-compile.log
