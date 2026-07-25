@@ -19,7 +19,9 @@ import java.util.concurrent.ConcurrentHashMap
 internal object EnhancedDestinationImage56 {
     private const val PREFS = "enhanced_destination_images_v56"
     private const val MAX_AGE_MS = 21L * 24L * 60L * 60L * 1_000L
-    private val memory = ConcurrentHashMap<String, String?>()
+    private const val EMPTY_RETRY_MS = 6L * 60L * 60L * 1_000L
+    private val memory = ConcurrentHashMap<String, String>()
+    private val emptyUntil = ConcurrentHashMap<String, Long>()
 
     private val queries = mapOf(
         "Aqualand Saint-Cyprien" to listOf("Aqualand Saint Cyprien water park", "Aqualand Saint-Cyprien Pyrénées Orientales"),
@@ -66,21 +68,31 @@ internal object EnhancedDestinationImage56 {
     fun resolve(context: Context, place: TravelPlace): String? {
         if (!shouldEnhance(place)) return null
         memory[place.title]?.let { return it }
+        val now = System.currentTimeMillis()
+        if ((emptyUntil[place.title] ?: 0L) > now) return null
+
         val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val savedAt = prefs.getLong("time:${place.title}", 0L)
         val savedUrl = prefs.getString("url:${place.title}", null)
-        if (!savedUrl.isNullOrBlank() && System.currentTimeMillis() - savedAt <= MAX_AGE_MS) {
+        if (!savedUrl.isNullOrBlank() && now - savedAt <= MAX_AGE_MS) {
             memory[place.title] = savedUrl
+            emptyUntil.remove(place.title)
             return savedUrl
         }
 
         val result = runCatching { find(place) }.getOrNull()
-        memory[place.title] = result
         if (!result.isNullOrBlank()) {
+            memory[place.title] = result
+            emptyUntil.remove(place.title)
             prefs.edit()
                 .putString("url:${place.title}", result)
-                .putLong("time:${place.title}", System.currentTimeMillis())
+                .putLong("time:${place.title}", now)
                 .apply()
+        } else {
+            // ConcurrentHashMap rejects null values. Remember an empty lookup in
+            // a separate timestamp map so the safe offline illustration remains
+            // visible without repeatedly hitting Wikimedia while scrolling.
+            emptyUntil[place.title] = now + EMPTY_RETRY_MS
         }
         return result
     }
