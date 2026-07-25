@@ -27,14 +27,21 @@ data class RoadsideStop54(
 
 data class RoadAheadState54(
     val active: Boolean = false,
+    /** True while results are sorted around the current position without a route. */
+    val nearbyMode: Boolean = false,
     val speedKmh: Int? = null,
     val accuracyM: Int? = null,
     val speedUpdatedAt: Long = 0L,
+    val locationUpdatedAt: Long = 0L,
     val fuelOptions: List<FuelSuggestion> = emptyList(),
     val roadsideStops: List<RoadsideStop54> = emptyList(),
     val dataUpdatedAt: Long = 0L,
+    val fuelUpdatedAt: Long = 0L,
+    val roadsideUpdatedAt: Long = 0L,
     val loadingFuel: Boolean = false,
     val loadingRoadside: Boolean = false,
+    val fuelMessage: String = "",
+    val roadsideMessage: String = "",
     val message: String = ""
 ) {
     val nextService: RoadsideStop54?
@@ -50,6 +57,9 @@ data class RoadAheadState54(
 
     val nextFuel: FuelSuggestion?
         get() = fuelOptions.firstOrNull()
+
+    val scopeLabel: String
+        get() = if (nearbyMode && !active) "in deiner Nähe" else "in Fahrtrichtung"
 }
 
 object RoadAheadStore54 {
