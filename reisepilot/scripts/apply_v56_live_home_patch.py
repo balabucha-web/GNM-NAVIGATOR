@@ -147,3 +147,43 @@ elif new_signature in main_text:
     print("PASS: MainActivity permission callback signature already correct")
 else:
     raise SystemExit("MainActivity permission callback marker missing")
+
+# The 5.6.1 layout patch is intentionally applied after this file. Adapt its
+# source markers to the location-permission card inserted above so both patches
+# stay deterministic in clean CI checkouts.
+layout_path = root / "scripts/apply_v561_layout_patch.py"
+layout = layout_path.read_text(encoding="utf-8")
+old_first = '''    var classicOpen by rememberSaveable { mutableStateOf(false) }
+    var selectedStage by rememberSaveable(snapshot.stage) { mutableStateOf(snapshot.stage) }
+    val context = activity.applicationContext
+    val settings = remember { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }'''
+new_first = '''    var classicOpen by rememberSaveable { mutableStateOf(false) }
+    var selectedStage by rememberSaveable(snapshot.stage) { mutableStateOf(snapshot.stage) }
+    val context = activity.applicationContext
+    val hasNearbyPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    val settings = remember { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }'''
+if old_first in layout:
+    layout = layout.replace(old_first, new_first, 1)
+
+old_second = '''    var classicOpen by rememberSaveable { mutableStateOf(false) }
+    val context = activity.applicationContext
+    val settings = remember { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }'''
+new_second = '''    var classicOpen by rememberSaveable { mutableStateOf(false) }
+    val context = activity.applicationContext
+    val hasNearbyPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    val settings = remember { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }'''
+if old_second in layout:
+    layout = layout.replace(old_second, new_second, 1)
+
+layout = layout.replace(
+    '''                )
+            }
+            if (!snapshot.active && mode == HomeMode55.PRE_TRIP) {''',
+    '''                )
+            }
+            if (!hasNearbyPermission && !snapshot.active) {'''
+)
+layout_path.write_text(layout, encoding="utf-8")
+print("PASS: 5.6.1 layout patch prepared for nearby-live markers")
