@@ -215,9 +215,6 @@ for old, new in replacements:
     text = text.replace(old, new, 1)
     changed = True
 
-# Some long-lived PR merge refs can contain a second copy of these legacy
-# helpers. Keep exactly one definition so the generated Kotlin source remains
-# deterministic and overload resolution cannot become ambiguous.
 legacy_helper_blocks = [
     '''private fun travelTime55(distanceKm: Double, speedKmh: Int?): String {
     val speed = (speedKmh ?: 90).coerceIn(35, 130)
@@ -253,3 +250,6 @@ elif new_signature in main_text:
     print("PASS: MainActivity permission callback signature already correct")
 else:
     raise SystemExit("MainActivity permission callback marker missing")
+
+fallback_patch = root / "scripts/apply_v561_live_fallback_patch.py"
+exec(compile(fallback_patch.read_text(encoding="utf-8"), str(fallback_patch), "exec"), {"__file__": str(fallback_patch), "__name__": "__main__"})
