@@ -68,6 +68,10 @@ jobs:
           path = Path('scripts/run_emulator_audit.sh')
           text = path.read_text()
           text = text.replace(
+              'if click_text_with_scroll "Testfahrt starten"; then',
+              'if click_text_with_scroll "Testfahrt starten" || click_text_with_scroll "Reise starten"; then'
+          )
+          text = text.replace(
               'if click_text "Testfahrt starten"; then',
               'if click_text "Testfahrt starten" || click_text "Reise starten"; then'
           )
