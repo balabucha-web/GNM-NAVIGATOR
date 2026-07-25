@@ -215,6 +215,27 @@ for old, new in replacements:
     text = text.replace(old, new, 1)
     changed = True
 
+# Some long-lived PR merge refs can contain a second copy of these legacy
+# helpers. Keep exactly one definition so the generated Kotlin source remains
+# deterministic and overload resolution cannot become ambiguous.
+legacy_helper_blocks = [
+    '''private fun travelTime55(distanceKm: Double, speedKmh: Int?): String {
+    val speed = (speedKmh ?: 90).coerceIn(35, 130)
+    val minutes = ceil(distanceKm / speed * 60.0).toInt().coerceAtLeast(1)
+    return if (minutes < 60) "ca. $minutes Min." else "ca. ${minutes / 60} Std. ${minutes % 60} Min."
+}''',
+    '''private fun featureText55(stop: RoadsideStop54): String = buildList {
+    if (stop.hasToilets) add("WC")
+    if (stop.hasFood) add("Essen")
+    if (stop.hasFuel) add("Tanken")
+}.takeIf { it.isNotEmpty() }?.joinToString(prefix = " · ", separator = " · ").orEmpty()'''
+]
+for block in legacy_helper_blocks:
+    while text.count(block) > 1:
+        duplicate_at = text.rfind(block)
+        text = text[:duplicate_at] + text[duplicate_at + len(block):]
+        changed = True
+
 if changed:
     path.write_text(text, encoding="utf-8")
     print("PASS: HomeDashboard55 patched for 5.6.1 current-leg and ordered live layout")
