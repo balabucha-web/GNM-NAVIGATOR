@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 from pathlib import Path
 
-path = Path(__file__).resolve().parents[1] / "app/src/main/java/de/balabucha/reisepilot/HomeDashboard55.kt"
+root = Path(__file__).resolve().parents[1]
+path = root / "app/src/main/java/de/balabucha/reisepilot/HomeDashboard55.kt"
 text = path.read_text(encoding="utf-8")
 
 replacements = [
@@ -69,3 +70,15 @@ if changed:
     print("PASS: HomeDashboard55 patched for immediate nearby live data")
 else:
     print("PASS: HomeDashboard55 already patched")
+
+main_path = root / "app/src/main/java/de/balabucha/reisepilot/MainActivity.kt"
+main_text = main_path.read_text(encoding="utf-8")
+old_signature = "override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray)"
+new_signature = "override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray)"
+if old_signature in main_text:
+    main_path.write_text(main_text.replace(old_signature, new_signature, 1), encoding="utf-8")
+    print("PASS: MainActivity permission callback signature patched")
+elif new_signature in main_text:
+    print("PASS: MainActivity permission callback signature already correct")
+else:
+    raise SystemExit("MainActivity permission callback marker missing")
