@@ -7,12 +7,62 @@ text = path.read_text(encoding="utf-8")
 
 replacements = [
     (
+        '    var selectedStage by rememberSaveable(snapshot.stage) { mutableStateOf(snapshot.stage) }',
+        '''    val preferredStage = remember(snapshot.active, snapshot.stage, snapshot.lat, snapshot.lon) {
+        preferredStage561(snapshot)
+    }
+    var selectedStage by rememberSaveable(preferredStage) { mutableStateOf(preferredStage) }'''
+    ),
+    (
         '''    val context = activity.applicationContext
     val settings = remember { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }''',
         '''    val context = activity.applicationContext
     val hasNearbyPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
     val settings = remember { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }'''
+    ),
+    (
+        '''    val displaySnapshot = if (displayStage == snapshot.stage) snapshot else snapshot.copy(
+        stage = displayStage,
+        lat = null,
+        lon = null,
+        routeGeoJson = "",
+        congestionJson = "[]",
+        tolls = emptyList()
+    )''',
+        '''    val displaySnapshot = if (snapshot.active && displayStage == snapshot.stage) snapshot else snapshot.copy(
+        active = false,
+        paused = false,
+        stage = displayStage,
+        speedKmh = null,
+        remainingKm = null,
+        etaEpochMs = null,
+        routeGeoJson = "",
+        congestionJson = "[]",
+        tolls = emptyList()
+    )'''
+    ),
+    (
+        '''                    FilterChip(
+                        selected = night,
+                        onClick = { manualNight = !manualNight },
+                        label = { Text(if (night) "Nachtansicht" else "Tagansicht") }
+                    )''',
+        '''                    Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
+                        FilledTonalButton(
+                            onClick = {
+                                assistantIntent = AssistantIntent52.WHAT_TODAY
+                                assistantOpen = true
+                            },
+                            modifier = Modifier.heightIn(min = 42.dp).testTag("open-reise-assistant"),
+                            contentPadding = PaddingValues(horizontal = 13.dp)
+                        ) { Text("AI", fontWeight = FontWeight.Black) }
+                        FilterChip(
+                            selected = night,
+                            onClick = { manualNight = !manualNight },
+                            label = { Text(if (night) "Nacht" else "Tag") }
+                        )
+                    }'''
     ),
     (
         '''            item {
@@ -44,6 +94,14 @@ replacements = [
                     onOpenMap = { onOpenTab(AppTab.ROUTE) }
                 )
             }
+            item {
+                CurrentLegCard561(
+                    snapshot = displaySnapshot,
+                    stage = displayStage,
+                    preview = preview.route,
+                    night = night
+                )
+            }
             if (!hasNearbyPermission && !snapshot.active) {
                 item {
                     HomeCard55(night) {
@@ -66,30 +124,55 @@ replacements = [
             if (!snapshot.active && mode == HomeMode55.PRE_TRIP) {'''
     ),
     (
+        'HomeSectionTitle55("Fahrt auf einen Blick", if (snapshot.active) dataAge55(roadState.dataUpdatedAt) else "Reisevorbereitung", primaryText, secondaryText)',
+        'HomeSectionTitle55("Aktuelle Etappe", if (snapshot.active) dataAge55(roadState.dataUpdatedAt) else "bis zum nächsten Ziel", primaryText, secondaryText)'
+    ),
+    (
+        'HomeMetrics55(snapshot, roadState, openPacking, night)',
+        'HomeMetrics561(snapshot, roadState, openPacking, displayStage, preview.route, night)'
+    ),
+    (
         'HomeSectionTitle55("Was kommt als Nächstes?", "in Fahrtrichtung", primaryText, secondaryText)',
-        'HomeSectionTitle55("Was kommt als Nächstes?", roadState.scopeLabel, primaryText, secondaryText)'
+        'HomeSectionTitle55("Live in deiner Umgebung", roadState.scopeLabel, primaryText, secondaryText)'
     ),
     (
-        '''    val fuel = roadState.nextFuel
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(end = 8.dp)) {
-        if (snapshot.active) {''',
-        '''    val fuel = roadState.nextFuel
-    val showLive = snapshot.active || roadState.nearbyMode || roadState.loadingFuel || roadState.loadingRoadside ||
-        roadState.fuelOptions.isNotEmpty() || roadState.roadsideStops.isNotEmpty()
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(end = 8.dp)) {
-        if (showLive) {'''
+        '''                NextThings55(
+                    roadState = roadState,
+                    snapshot = snapshot,
+                    night = night,
+                    onOpen = { roadAheadOpen = true },
+                    onPacking = { onOpenTab(AppTab.PACKING) }
+                )''',
+        '''                NextThings561(
+                    roadState = roadState,
+                    snapshot = snapshot,
+                    night = night,
+                    onOpen = { roadAheadOpen = true },
+                    onPacking = { onOpenTab(AppTab.PACKING) }
+                )'''
     ),
     (
-        'detail = service?.let { travelTime55(it.distanceAheadKm, roadState.speedKmh) + featureText55(it) }.orEmpty(),',
-        'detail = service?.let { if (roadState.nearbyMode && !snapshot.active) "${distanceKm54(it.distanceAheadKm)} entfernt${featureText55(it)}" else travelTime55(it.distanceAheadKm, roadState.speedKmh) + featureText55(it) }.orEmpty(),'
+        'HomeSectionTitle55("Deine Reise", "Etappe ${current + 1} von 4", homeText55(night), homeMuted55(night))',
+        'HomeSectionTitle55("Gesamtreise", "Übersicht · Etappe ${current + 1} von 4", homeText55(night), homeMuted55(night))'
     ),
     (
-        'detail = parking?.let { travelTime55(it.distanceAheadKm, roadState.speedKmh) + featureText55(it) }.orEmpty(),',
-        'detail = parking?.let { if (roadState.nearbyMode && !snapshot.active) "${distanceKm54(it.distanceAheadKm)} entfernt${featureText55(it)}" else travelTime55(it.distanceAheadKm, roadState.speedKmh) + featureText55(it) }.orEmpty(),'
+        'contentPadding = PaddingValues(start = 14.dp, top = 14.dp, end = 14.dp, bottom = if (snapshot.active) 190.dp else 108.dp),',
+        'contentPadding = PaddingValues(start = 14.dp, top = 14.dp, end = 14.dp, bottom = if (snapshot.active) 150.dp else 102.dp),'
     ),
     (
-        'detail = fuel?.let { "${distanceKm54(it.distanceAheadKm)} · ${String.format(Locale.GERMANY, "%.1f km Umweg", it.detourKm)}" }.orEmpty(),',
-        'detail = fuel?.let { if (roadState.nearbyMode && !snapshot.active) "${distanceKm54(it.distanceAheadKm)} entfernt" else "${distanceKm54(it.distanceAheadKm)} · ${String.format(Locale.GERMANY, "%.1f km Umweg", it.detourKm)}" }.orEmpty(),'
+        '''
+        ExtendedFloatingActionButton(
+            onClick = {
+                assistantIntent = AssistantIntent52.WHAT_TODAY
+                assistantOpen = true
+            },
+            icon = { Text("AI", fontWeight = FontWeight.Black) },
+            text = { Text("Reise-Assistent", fontWeight = FontWeight.Bold) },
+            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp).testTag("open-reise-assistant"),
+            containerColor = if (night) Color(0xFF1F6F8B) else Navy,
+            contentColor = Color.White
+        )''',
+        ''
     ),
     (
         'Text("Nächste Punkte in Fahrtrichtung", style = MaterialTheme.typography.headlineSmall)',
@@ -123,16 +206,18 @@ replacements = [
 
 changed = False
 for old, new in replacements:
-    if new in text:
+    if new and new in text:
+        continue
+    if not new and old not in text:
         continue
     if old not in text:
-        raise SystemExit(f"HomeDashboard55 patch marker missing: {old[:100]}")
+        raise SystemExit(f"HomeDashboard55 patch marker missing: {old[:120]}")
     text = text.replace(old, new, 1)
     changed = True
 
 if changed:
     path.write_text(text, encoding="utf-8")
-    print("PASS: HomeDashboard55 patched for immediate nearby live data")
+    print("PASS: HomeDashboard55 patched for 5.6.1 current-leg and ordered live layout")
 else:
     print("PASS: HomeDashboard55 already patched")
 
@@ -147,43 +232,3 @@ elif new_signature in main_text:
     print("PASS: MainActivity permission callback signature already correct")
 else:
     raise SystemExit("MainActivity permission callback marker missing")
-
-# The 5.6.1 layout patch is intentionally applied after this file. Adapt its
-# source markers to the location-permission card inserted above so both patches
-# stay deterministic in clean CI checkouts.
-layout_path = root / "scripts/apply_v561_layout_patch.py"
-layout = layout_path.read_text(encoding="utf-8")
-old_first = '''    var classicOpen by rememberSaveable { mutableStateOf(false) }
-    var selectedStage by rememberSaveable(snapshot.stage) { mutableStateOf(snapshot.stage) }
-    val context = activity.applicationContext
-    val settings = remember { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }'''
-new_first = '''    var classicOpen by rememberSaveable { mutableStateOf(false) }
-    var selectedStage by rememberSaveable(snapshot.stage) { mutableStateOf(snapshot.stage) }
-    val context = activity.applicationContext
-    val hasNearbyPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-    val settings = remember { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }'''
-if old_first in layout:
-    layout = layout.replace(old_first, new_first, 1)
-
-old_second = '''    var classicOpen by rememberSaveable { mutableStateOf(false) }
-    val context = activity.applicationContext
-    val settings = remember { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }'''
-new_second = '''    var classicOpen by rememberSaveable { mutableStateOf(false) }
-    val context = activity.applicationContext
-    val hasNearbyPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-    val settings = remember { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }'''
-if old_second in layout:
-    layout = layout.replace(old_second, new_second, 1)
-
-layout = layout.replace(
-    '''                )
-            }
-            if (!snapshot.active && mode == HomeMode55.PRE_TRIP) {''',
-    '''                )
-            }
-            if (!hasNearbyPermission && !snapshot.active) {'''
-)
-layout_path.write_text(layout, encoding="utf-8")
-print("PASS: 5.6.1 layout patch prepared for nearby-live markers")
