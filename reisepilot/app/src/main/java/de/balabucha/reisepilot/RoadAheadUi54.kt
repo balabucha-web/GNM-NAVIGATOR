@@ -70,27 +70,23 @@ private fun RoadAheadCompact54(
             }
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CompactMetric54("Tempo", state.speedKmh?.let { "$it km/h" } ?: "–", Modifier.weight(1f))
                 CompactMetric54(
-                    label = "Tempo",
-                    value = state.speedKmh?.let { "$it km/h" } ?: "–",
-                    modifier = Modifier.weight(1f)
+                    service?.kind?.label ?: "Raststätte",
+                    service?.distanceAheadKm?.let(::distanceKm54) ?: loadingValue54(state.loadingRoadside),
+                    Modifier.weight(1f)
                 )
                 CompactMetric54(
-                    label = service?.kind?.label ?: "Raststätte",
-                    value = service?.distanceAheadKm?.let(::distanceKm54) ?: loadingValue54(state.loadingRoadside),
-                    modifier = Modifier.weight(1f)
+                    "Parkplatz",
+                    parking?.distanceAheadKm?.let(::distanceKm54) ?: loadingValue54(state.loadingRoadside),
+                    Modifier.weight(1f)
                 )
                 CompactMetric54(
-                    label = "Parkplatz",
-                    value = parking?.distanceAheadKm?.let(::distanceKm54) ?: loadingValue54(state.loadingRoadside),
-                    modifier = Modifier.weight(1f)
-                )
-                CompactMetric54(
-                    label = "Diesel",
-                    value = fuel?.pricePerLitre?.let { String.format(Locale.GERMANY, "%.3f €", it) }
+                    "Diesel",
+                    fuel?.pricePerLitre?.let { String.format(Locale.GERMANY, "%.3f €", it) }
                         ?: fuel?.distanceAheadKm?.let(::distanceKm54)
                         ?: loadingValue54(state.loadingFuel),
-                    modifier = Modifier.weight(1f)
+                    Modifier.weight(1f)
                 )
             }
         }
@@ -109,7 +105,7 @@ private fun CompactMetric54(label: String, value: String, modifier: Modifier) {
 }
 
 @Composable
-private fun RoadAheadSheet54(activity: MainActivity, state: RoadAheadState54) {
+internal fun RoadAheadSheet54(activity: MainActivity, state: RoadAheadState54) {
     LazyColumn(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 36.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -118,16 +114,22 @@ private fun RoadAheadSheet54(activity: MainActivity, state: RoadAheadState54) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Nächste Stopps in Fahrtrichtung", style = MaterialTheme.typography.headlineSmall)
                     Text(
-                        "Tempo wird ungefähr jede Sekunde aktualisiert. Entfernungen laufen mit der Position mit.",
+                        if (state.nearbyMode && !state.active) "Live-Daten in deiner Nähe" else "Nächste Stopps in Fahrtrichtung",
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    Text(
+                        if (state.nearbyMode && !state.active)
+                            "Wird direkt nach App-Start geladen. Mit aktiver Route erfolgt die Richtungs- und Umwegprüfung."
+                        else
+                            "Tempo wird ungefähr jede Sekunde aktualisiert. Entfernungen laufen mit der Position mit.",
                         color = Muted,
                         fontSize = 12.sp
                     )
                 }
                 Surface(color = Green.copy(alpha = .12f), shape = RoundedCornerShape(12.dp)) {
                     Text(
-                        state.speedKmh?.let { "$it km/h" } ?: "GPS",
+                        if (state.nearbyMode && !state.active) "UMGEBUNG" else state.speedKmh?.let { "$it km/h" } ?: "GPS",
                         color = Green,
                         fontWeight = FontWeight.Black,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)
@@ -145,45 +147,56 @@ private fun RoadAheadSheet54(activity: MainActivity, state: RoadAheadState54) {
                     CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
                     Spacer(Modifier.width(8.dp))
                 }
-                Text(if (state.loadingFuel || state.loadingRoadside) "Live-Daten werden geladen" else "Jetzt aktualisieren")
+                Text(if (state.loadingFuel || state.loadingRoadside) "Live-Daten werden aktualisiert" else "Jetzt aktualisieren")
             }
         }
-        if (state.message.isNotBlank()) {
-            item { WarningCard("Live-Hinweis", state.message, Light.YELLOW) }
-        }
-        item { SectionTitle("Tankstellen abseits der Autobahn", "Preis + Umweg") }
+        if (state.message.isNotBlank()) item { WarningCard("Live-Hinweis", state.message, if (state.message.contains("aktuell", true)) Light.GREEN else Light.YELLOW) }
+
+        item { SectionTitle("Tankstellen", if (state.nearbyMode && !state.active) "Entfernung + Preis" else "Preis + Umweg") }
         if (state.fuelOptions.isEmpty()) {
             item {
                 StatusLine(
                     "Noch keine Tankstellen",
-                    if (state.loadingFuel) "Preise und Fahrtrichtung werden geprüft." else "Bei Deutschland ist für Preise ein Tankerkönig-Key erforderlich.",
+                    state.fuelMessage.ifBlank {
+                        if (state.loadingFuel) "Tankstellen und Preise werden geladen." else "Für deutsche Preise ist ein Tankerkönig-Key erforderlich."
+                    },
                     if (state.loadingFuel) Light.YELLOW else Light.GREY
                 )
             }
         } else {
             items(state.fuelOptions, key = { "fuel54:${it.point.lat}:${it.point.lon}" }) { fuel ->
-                FuelOptionCard54(activity, fuel)
+                FuelOptionCard54(activity, fuel, state.nearbyMode && !state.active)
             }
+            if (state.fuelMessage.isNotBlank()) item { StatusLine("Tankdaten", state.fuelMessage, if (state.loadingFuel) Light.YELLOW else Light.GREEN) }
         }
-        item { SectionTitle("Raststätten, Rastplätze und Parkplätze", "bis 120 km voraus") }
+
+        item {
+            SectionTitle(
+                "Raststätten, Rastplätze und Parkplätze",
+                if (state.nearbyMode && !state.active) "im Umkreis" else "bis 120 km voraus"
+            )
+        }
         if (state.roadsideStops.isEmpty()) {
             item {
                 StatusLine(
                     "Noch keine Stopps",
-                    if (state.loadingRoadside) "OpenStreetMap-Punkte werden entlang der Route geladen." else "Keine passenden Punkte in der aktuellen Route gefunden.",
+                    state.roadsideMessage.ifBlank {
+                        if (state.loadingRoadside) "OpenStreetMap-Punkte werden geladen." else "Keine passenden Punkte gefunden."
+                    },
                     if (state.loadingRoadside) Light.YELLOW else Light.GREY
                 )
             }
         } else {
             items(state.roadsideStops.take(12), key = { "road54:${it.id}" }) { stop ->
-                RoadsideCard54(activity, stop)
+                RoadsideCard54(activity, stop, state.nearbyMode && !state.active)
             }
+            if (state.roadsideMessage.isNotBlank()) item { StatusLine("Umgebungsdaten", state.roadsideMessage, if (state.loadingRoadside) Light.YELLOW else Light.GREEN) }
         }
     }
 }
 
 @Composable
-private fun FuelOptionCard54(activity: MainActivity, fuel: FuelSuggestion) {
+private fun FuelOptionCard54(activity: MainActivity, fuel: FuelSuggestion, nearby: Boolean) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, Line),
@@ -203,7 +216,11 @@ private fun FuelOptionCard54(activity: MainActivity, fuel: FuelSuggestion) {
             }
             Spacer(Modifier.height(7.dp))
             Text(
-                "${distanceKm54(fuel.distanceAheadKm)} voraus · ca. ${String.format(Locale.GERMANY, "%.1f", fuel.detourKm)} km Umweg",
+                if (nearby) {
+                    "${distanceKm54(fuel.distanceAheadKm)} entfernt"
+                } else {
+                    "${distanceKm54(fuel.distanceAheadKm)} voraus · ca. ${String.format(Locale.GERMANY, "%.1f", fuel.detourKm)} km Umweg"
+                },
                 color = Navy,
                 fontSize = 13.sp
             )
@@ -219,7 +236,7 @@ private fun FuelOptionCard54(activity: MainActivity, fuel: FuelSuggestion) {
 }
 
 @Composable
-private fun RoadsideCard54(activity: MainActivity, stop: RoadsideStop54) {
+private fun RoadsideCard54(activity: MainActivity, stop: RoadsideStop54, nearby: Boolean) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, Line),
@@ -240,8 +257,12 @@ private fun RoadsideCard54(activity: MainActivity, stop: RoadsideStop54) {
                 Column(Modifier.weight(1f)) {
                     Text(stop.name, fontWeight = FontWeight.Bold, maxLines = 2)
                     Text(
-                        "${distanceKm54(stop.distanceAheadKm)} voraus" +
-                            stop.detourKm?.let { " · ca. ${String.format(Locale.GERMANY, "%.1f", it)} km Umweg" }.orEmpty(),
+                        if (nearby) {
+                            "${distanceKm54(stop.distanceAheadKm)} entfernt"
+                        } else {
+                            "${distanceKm54(stop.distanceAheadKm)} voraus" +
+                                stop.detourKm?.let { " · ca. ${String.format(Locale.GERMANY, "%.1f", it)} km Umweg" }.orEmpty()
+                        },
                         color = Navy,
                         fontSize = 13.sp
                     )
