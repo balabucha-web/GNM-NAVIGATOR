@@ -31,6 +31,10 @@ jobs:
           mkdir project
           unzip -q project.zip -d project
           sed -i '/import androidx.compose.foundation.layout.Box/a import androidx.compose.foundation.layout.matchParentSize' project/app/src/main/java/de/balabucha/reisepilot/DestinationRepository.kt
+          awk '!/org.jetbrains.kotlin.android/' project/build.gradle.kts > project/build.gradle.kts.new
+          mv project/build.gradle.kts.new project/build.gradle.kts
+          awk '!/org.jetbrains.kotlin.android/' project/app/build.gradle.kts > project/app/build.gradle.kts.new
+          mv project/app/build.gradle.kts.new project/app/build.gradle.kts
       - name: Build debug APK
         run: |
           set +e
