@@ -47,7 +47,10 @@ class MainActivity : ComponentActivity() {
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
         setContent { ReiseTheme { ReisePilotApp(this, snapshot) } }
-        maybeRequestStartupLocation()
+        // Do not place a system permission dialog in front of the first frame.
+        // Existing users with location permission receive nearby data immediately;
+        // new users see the app first and grant location through the normal trip/
+        // live-data action instead of an unexplained launch-time interruption.
     }
 
     override fun onResume() {
@@ -76,7 +79,7 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == STARTUP_LOCATION_REQUEST && ::nearby56.isInitialized) {
             nearby56.onPermissionChanged()
@@ -94,6 +97,10 @@ class MainActivity : ComponentActivity() {
             arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
             STARTUP_LOCATION_REQUEST
         )
+    }
+
+    fun requestNearbyLocationPermission56() {
+        maybeRequestStartupLocation()
     }
 
     private fun loadSnapshot() {
