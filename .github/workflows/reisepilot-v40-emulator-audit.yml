@@ -75,6 +75,10 @@ jobs:
               'if click_text "Testfahrt starten"; then',
               'if click_text "Testfahrt starten" || click_text "Reise starten"; then'
           )
+          text = text.replace(
+              'for _ in 1 2 3 4; do\n    "$ADB_BIN" shell input swipe 430 1500 430 650 550',
+              'for _ in $(seq 1 12); do\n    "$ADB_BIN" shell input swipe 430 1450 430 1120 350'
+          )
           path.write_text(text)
           PY
           chmod +x scripts/run_emulator_audit.sh
