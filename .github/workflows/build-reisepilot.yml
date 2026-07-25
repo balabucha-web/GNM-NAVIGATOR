@@ -30,7 +30,9 @@ jobs:
         run: |
           mkdir project
           unzip -q project.zip -d project
-          sed -i '/import androidx.compose.foundation.layout.Box/a import androidx.compose.foundation.layout.matchParentSize' project/app/src/main/java/de/balabucha/reisepilot/DestinationRepository.kt
+          sed -i '/import androidx.compose.foundation.layout.Box/a import androidx.compose.foundation.layout.fillMaxSize' project/app/src/main/java/de/balabucha/reisepilot/DestinationRepository.kt
+          sed -i 's/Modifier.matchParentSize()/Modifier.fillMaxSize()/' project/app/src/main/java/de/balabucha/reisepilot/DestinationRepository.kt
+          sed -i 's@Diagnostics.event(context, "destination_image_error", mapOf("name" to photo.name, "error" to (it.message ?: it.javaClass.simpleName)))@Diagnostics.log(context, "destination_image_error", org.json.JSONObject().put("name", photo.name).put("error", it.message ?: it.javaClass.simpleName))@' project/app/src/main/java/de/balabucha/reisepilot/DestinationRepository.kt
           awk '!/org.jetbrains.kotlin.android/' project/build.gradle.kts > project/build.gradle.kts.new
           mv project/build.gradle.kts.new project/build.gradle.kts
           awk '!/org.jetbrains.kotlin.android/' project/app/build.gradle.kts > project/app/build.gradle.kts.new
