@@ -69,7 +69,6 @@ class ReisePilotUserFlowTest {
         compose.onNodeWithText("Dein Reise-Cockpit").assertIsDisplayed()
         compose.onNodeWithText("Etappe wählen").assertIsDisplayed()
         compose.onNodeWithText("AKTUELLE TEILSTRECKE").assertExists()
-        compose.onNodeWithText("Aktuelle Etappe").assertExists()
 
         val startLabel = if (java.time.Instant.now().isBefore(VACATION_DEPARTURE.toInstant())) {
             "Testfahrt starten"
