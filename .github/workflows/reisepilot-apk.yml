@@ -1,0 +1,202 @@
+name: Build ReisePilot 5.6.1 APK
+
+on:
+  push:
+    branches:
+      - reisepilot-v41-release-fixes
+    paths:
+      - 'reisepilot/**'
+      - '.github/workflows/reisepilot-apk.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'reisepilot/**'
+      - '.github/workflows/reisepilot-apk.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: reisepilot-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: reisepilot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+      - name: Apply 5.6.1 dashboard patch
+        run: python3 scripts/apply_v56_live_home_patch.py
+      - name: Verify ReisePilot 5.6.1 sources
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path('app/src/main/java/de/balabucha/reisepilot')
+          required = {
+              'Ui.kt': [
+                  'PACKING("Packliste")',
+                  'HomeDashboard55',
+                  'MapScreen54',
+                  'VisualDiscoverScreen51',
+                  'MoreHubScreen51',
+                  'bottom = 86.dp',
+              ],
+              'HomeDashboard55.kt': [
+                  'CurrentLegCard561(',
+                  'preferredStage561(snapshot)',
+                  'snapshot.active && displayStage == snapshot.stage',
+                  'Gesamtreise',
+                  'HomeMetrics561',
+                  'NextThings561',
+                  'roadState.scopeLabel',
+                  'open-reise-assistant',
+                  'Tank und Reichweite',
+                  'Wetter entlang der Route',
+                  'ANKUNFTSMODUS',
+                  'NativeTripMap54',
+              ],
+              'HomeStability561.kt': [
+                  'AKTUELLE TEILSTRECKE',
+                  'Etappe 1 von 2 · Zwischenhotel',
+                  'Bis Hotel',
+                  'Live-Daten',
+                  'preferredStage561',
+                  'NextThings561',
+              ],
+              'CompactDiagnostics51.kt': [
+                  'Prüfungen abgeschlossen',
+                  'LiveDataDiagnostics.SOURCE_COUNT',
+                  'Prüfung neu starten',
+                  'onProgress',
+              ],
+              'LiveDataDiagnostics.kt': [
+                  'SOURCE_COUNT = 9',
+                  'Standort & Live-Umgebung',
+                  'SOURCE_TIMEOUT_MS',
+                  'Hotel-Teilstrecke antwortet',
+                  'onProgress',
+              ],
+              'NearbyLiveController56.kt': [
+                  'PRIORITY_BALANCED_POWER_ACCURACY',
+                  'restoreCache()',
+                  'NearbyFuelClient56.query',
+                  'NearbyRoadsideClient56.query',
+                  'SLOW_NOTICE_MS',
+                  'Standortfreigabe erforderlich',
+              ],
+              'NearbyFuelClient56.kt': [
+                  'queryGermany',
+                  'queryFrance',
+                  'querySpain',
+                  'queryOsm',
+                  'in deiner Nähe',
+              ],
+              'NearbyRoadsideClient56.kt': [
+                  'around:35000',
+                  'amenity=parking',
+                  'parking=layby',
+                  'in deiner Nähe',
+              ],
+              'RoadAheadModels54.kt': [
+                  'nearbyMode',
+                  'fuelMessage',
+                  'roadsideMessage',
+                  'scopeLabel',
+              ],
+              'EnhancedDestinationImage56.kt': [
+                  'Aqualand Saint-Cyprien',
+                  'Disneyland Paris',
+                  'Palais Garnier exterior Paris',
+                  'commonsGeo',
+                  'blockedByPlace',
+              ],
+              'DirectOpenAiClient53.kt': [
+                  'https://api.openai.com/v1/responses',
+                  'json_schema',
+                  'incomplete_details',
+                  'FIRST_OUTPUT_LIMIT',
+                  'RETRY_OUTPUT_LIMIT',
+                  'compactRetryContext',
+              ],
+          }
+          for name, markers in required.items():
+              text = (root / name).read_text()
+              for marker in markers:
+                  assert marker in text, f'{name}: missing {marker}'
+          version = Path('app/build.gradle.kts').read_text()
+          assert 'versionName = "5.6.1"' in version
+          assert 'versionCode = 30' in version
+          manifest = Path('app/src/main/AndroidManifest.xml').read_text()
+          assert 'android.permission.ACCESS_FINE_LOCATION' in manifest
+          assert 'android.permission.RECORD_AUDIO' in manifest
+          backend = Path('backend/openai-proxy/server.mjs').read_text()
+          assert "store: false" in backend
+          assert "json_schema" in backend
+          assert "OPENAI_API_KEY" in backend
+          repo_text = '\n'.join(path.read_text(errors='ignore') for path in Path('.').rglob('*') if path.is_file() and '.git' not in path.parts)
+          assert 'sk-proj-' not in repo_text
+          print('PASS: ReisePilot 5.6.1 current hotel leg, progressive diagnostics and ordered nearby live data present')
+          PY
+          node --check backend/openai-proxy/server.mjs
+      - name: Check live sources and Wikimedia images
+        run: |
+          python3 scripts/check_live_data.py
+          python3 scripts/check_wikimedia_images.py
+      - name: Verify offline destination assets
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          assets = Path('app/src/main/assets')
+          entries = json.loads((assets / 'destination_photos/index.json').read_text())['places']
+          assert len(entries) == 93, len(entries)
+          actual = sum(bool(item['photo']) for item in entries.values())
+          assert actual >= 75, actual
+          parking = json.loads((assets / 'destination_parkings.json').read_text())['places']
+          assert len(parking) == 93
+          assert sum(bool(items) for items in parking.values()) == 93
+          print(f'PASS: {len(entries)} destinations, {actual} exact offline photos, curated online second pass, complete parking fallbacks')
+          PY
+      - name: Unit tests, lint and APK build
+        id: build
+        shell: bash
+        run: |
+          set +e
+          gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --stacktrace 2>&1 | tee build.log
+          code=${PIPESTATUS[0]}
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" -eq 0 ]; then
+            sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/ReisePilot-Live-v5.6.1.sha256
+          fi
+          exit 0
+      - name: Upload build evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReisePilot-v5.6.1-build-evidence
+          path: |
+            reisepilot/build.log
+            reisepilot/app/build/reports/tests/testDebugUnitTest
+            reisepilot/app/build/reports/lint-results-debug.html
+          if-no-files-found: warn
+      - name: Upload APK
+        if: steps.build.outputs.exit_code == '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReisePilot-Live-v5.6.1-APK
+          path: |
+            reisepilot/app/build/outputs/apk/debug/app-debug.apk
+            reisepilot/app/build/outputs/apk/debug/ReisePilot-Live-v5.6.1.sha256
+          if-no-files-found: error
+      - name: Fail when validation failed
+        if: steps.build.outputs.exit_code != '0'
+        run: exit 1

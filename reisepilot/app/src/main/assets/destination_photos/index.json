@@ -1,0 +1,845 @@
+{
+  "version": 1,
+  "cellWidth": 480,
+  "cellHeight": 270,
+  "columns": 5,
+  "places": {
+    "Strand & Promenade Canet": {
+      "region": "CANET",
+      "index": 0,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Canet-Plage_(march_2008)_249.jpg",
+      "author": "Michiel1972",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    "Oniria Aquarium": {
+      "region": "CANET",
+      "index": 1,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Canet_-_Oniria_02.jpg",
+      "author": "Tylwyth Eldar",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "Fischerdorf & Étang": {
+      "region": "CANET",
+      "index": 2,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Village_des_P%C3%AAcheurs_in_Canet-en-Roussillon_4.jpg",
+      "author": "Przemek P",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "Collioure": {
+      "region": "CANET",
+      "index": 3,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Collioure_002.jpg",
+      "author": "Doronenko",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "Perpignan Altstadt & Castillet": {
+      "region": "CANET",
+      "index": 4,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:090_Perpignan_Le_Castillet_-La_Porte_Notre-Dame-.JPG",
+      "author": "Henri MOREAU",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "Palast der Könige von Mallorca": {
+      "region": "CANET",
+      "index": 5,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Layers_of_Gothic_arches_in_the_dining_hall_in_the_Palace_of_the_Kings_of_Majorca,_Perpignan_(54506994477).jpg",
+      "author": "Winniepix",
+      "license": "CC BY 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+    },
+    "Réserve Africaine de Sigean": {
+      "region": "CANET",
+      "index": 6,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:4_zebras,_r%C3%A9serve_africaine_de_Sigean.jpg",
+      "author": "",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    "Aqualand Saint-Cyprien": {
+      "region": "CANET",
+      "index": 7,
+      "photo": false,
+      "source": "",
+      "author": "ReisePilot",
+      "license": "lokale Illustration",
+      "licenseUrl": ""
+    },
+    "Les Orgues d’Ille-sur-Têt": {
+      "region": "CANET",
+      "index": 8,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Les_Orgues_Ille-sur-Tet1.jpeg",
+      "author": "No machine-readable author provided. Ancalagon assumed (based on copyright claims).",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    "Cap Leucate & Klippenweg": {
+      "region": "CANET",
+      "index": 9,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:P1100878Cap_Leucate1.JPG",
+      "author": "Jacques Le Letty",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "Port-Vendres & Cap Béar": {
+      "region": "CANET",
+      "index": 10,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Port-Vendres.jpg",
+      "author": "Minto",
+      "license": "Public domain",
+      "licenseUrl": ""
+    },
+    "Festung Salses": {
+      "region": "CANET",
+      "index": 11,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Salses_Forteresse_entr%C3%A9e.jpg",
+      "author": "",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    "Markt Canet-Plage": {
+      "region": "CANET",
+      "index": 12,
+      "photo": false,
+      "source": "",
+      "author": "ReisePilot",
+      "license": "lokale Illustration",
+      "licenseUrl": ""
+    },
+    "Intermarché Canet": {
+      "region": "CANET",
+      "index": 13,
+      "photo": false,
+      "source": "",
+      "author": "ReisePilot",
+      "license": "lokale Illustration",
+      "licenseUrl": ""
+    },
+    "Lidl Canet": {
+      "region": "CANET",
+      "index": 14,
+      "photo": false,
+      "source": "",
+      "author": "ReisePilot",
+      "license": "lokale Illustration",
+      "licenseUrl": ""
+    },
+    "Carrefour Claira / Salanca": {
+      "region": "CANET",
+      "index": 15,
+      "photo": false,
+      "source": "",
+      "author": "ReisePilot",
+      "license": "lokale Illustration",
+      "licenseUrl": ""
+    },
+    "Anse de Paulilles": {
+      "region": "CANET",
+      "index": 16,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Anse_de_paulilles-usine.jpg",
+      "author": "own work",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    "Villefranche-de-Conflent": {
+      "region": "CANET",
+      "index": 17,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Remparts_de_Villefranche-de-Conflent,_%C3%A9chaudi%C3%A8re.jpg",
+      "author": "Meria z Geoian",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "Banyuls & Biodiversarium": {
+      "region": "CANET",
+      "index": 18,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:L%27_Observatoire_Oc%C3%A9anologique_de_Banyuls-sur-Mer.JPG",
+      "author": "Jpbazard Jean-Pierre bazard",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "Gorges de Galamus": {
+      "region": "CANET",
+      "index": 19,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Gorges_de_Galamus_2_20050517.jpg",
+      "author": "",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    "Lac de Villeneuve-de-la-Raho": {
+      "region": "CANET",
+      "index": 20,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Villeneuve-de-la-Raho-06.jpg",
+      "author": "Wayne77",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "Luna Park Argelès": {
+      "region": "CANET",
+      "index": 21,
+      "photo": false,
+      "source": "",
+      "author": "ReisePilot",
+      "license": "lokale Illustration",
+      "licenseUrl": ""
+    },
+    "Sagrada Família": {
+      "region": "BARCELONA",
+      "index": 0,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Temple_Expiatori_de_la_Sagrada_Fam%C3%ADlia_(Barcelona)_-_66.jpg",
+      "author": "SBA73",
+      "license": "CC BY-SA 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+    },
+    "Park Güell": {
+      "region": "BARCELONA",
+      "index": 1,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:View_from_Park_G%C3%BCell_Terrace.jpg",
+      "author": "Coffeegirlyme at English Wikipedia",
+      "license": "Public domain",
+      "licenseUrl": ""
+    },
+    "Gotisches Viertel & Kathedrale": {
+      "region": "BARCELONA",
+      "index": 2,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Main_facade_of_Barcelona_Cathedral_-_2013.JPG",
+      "author": "Jordiferrer",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "Montjuïc, Seilbahn & Burg": {
+      "region": "BARCELONA",
+      "index": 3,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Montju%C3%AFc_Cable_Car.jpg",
+      "author": "Ivan Mlinaric",
+      "license": "CC BY 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+    },
+    "L’Aquàrium Barcelona": {
+      "region": "BARCELONA",
+      "index": 4,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Aquarium_de_Barcelona.jpg",
+      "author": "Pere prlpz",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "CosmoCaixa": {
+      "region": "BARCELONA",
+      "index": 5,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:2016_CosmoCaixa_018.jpg",
+      "author": "Jordiferrer",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "Tibidabo": {
+      "region": "BARCELONA",
+      "index": 6,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Giradabo_at_Tibidabo_amusement_park_in_Barcelona.jpg",
+      "author": "IM027",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "Parc de la Ciutadella & Arc de Triomf": {
+      "region": "BARCELONA",
+      "index": 7,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Parc_de_la_Ciutadella_-collage_.BARCELONA.jpg",
+      "author": "Rosa Mª O.M.",
+      "license": "CC BY-SA 3.0 es",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/es/deed.en"
+    },
+    "Poble Espanyol": {
+      "region": "BARCELONA",
+      "index": 8,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:D189_Poble_Espanyol_-_Carrer_Caballeros.JPG",
+      "author": "Jordiferrer",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "Laberint d’Horta": {
+      "region": "BARCELONA",
+      "index": 9,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Parc_del_Laberint_d%27Horta_Barcelona_2.jpg",
+      "author": "Till F. Teenck",
+      "license": "CC BY-SA 2.5",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.5"
+    },
+    "Barceloneta & Strandpromenade": {
+      "region": "BARCELONA",
+      "index": 10,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Promenade_and_beach,_Platja_de_la_Barceloneta,_Barcelona,_2015.jpg",
+      "author": "DimiTalen",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+    },
+    "Mercat de la Boqueria": {
+      "region": "BARCELONA",
+      "index": 11,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Mercat_de_la_Boqueria_20171227.jpg",
+      "author": "Suicasmo",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "Maremagnum": {
+      "region": "BARCELONA",
+      "index": 12,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Spain.Barcelona.Maremagnum.Noche.jpg",
+      "author": "Year of the dragon",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    "Westfield Glòries": {
+      "region": "BARCELONA",
+      "index": 13,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:147_Centre_comercial_Westfield_Gl%C3%B2ries_(Barcelona),_sostre_de_vidres_de_colors.jpg",
+      "author": "Enric",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0"
+    },
+    "Diagonal Mar": {
+      "region": "BARCELONA",
+      "index": 14,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Diagonal_Mar_shopping_center_(Barcelona).jpg",
+      "author": "Oh-Barcelona.com",
+      "license": "CC BY 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+    },
+    "La Roca Village": {
+      "region": "BARCELONA",
+      "index": 15,
+      "photo": false,
+      "source": "",
+      "author": "ReisePilot",
+      "license": "lokale Illustration",
+      "licenseUrl": ""
+    },
+    "Casa Batlló": {
+      "region": "BARCELONA",
+      "index": 16,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Casa_Batll%C3%B3_detail_sept2007.jpg",
+      "author": "Fabien1309",
+      "license": "CC BY-SA 2.0 fr",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/fr/deed.en"
+    },
+    "La Pedrera": {
+      "region": "BARCELONA",
+      "index": 17,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Casa_Mil%C3%A0-La_Pedrera.jpg",
+      "author": "Roger Price",
+      "license": "CC BY 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+    },
+    "Recinte Modernista Sant Pau": {
+      "region": "BARCELONA",
+      "index": 18,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Hospital_Sant_Pau_panorama.jpg",
+      "author": "Jesús Arpón",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "Museu Marítim": {
+      "region": "BARCELONA",
+      "index": 19,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Museu_Mar%C3%ADtim_de_Barcelona-_Vista_a_peu_de_carrer.JPG",
+      "author": "Kippelboy",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "Schokoladenmuseum": {
+      "region": "BARCELONA",
+      "index": 20,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Museu_de_la_Xocolata_de_Barcelona_fa%C3%A7ana.JPG",
+      "author": "Kippelboy",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "Sitges": {
+      "region": "BARCELONA",
+      "index": 21,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Beach_Driftwood_Sitges_Spain_Sunset.jpg",
+      "author": "Lauren Dickinson",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "Roc del Quer": {
+      "region": "ANDORRA",
+      "index": 0,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Mirador_del_Roc_del_Quer_(43598780091).jpg",
+      "author": "Kent Wang from Barcelona, Spain",
+      "license": "CC BY-SA 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+    },
+    "Tibetische Brücke Canillo": {
+      "region": "ANDORRA",
+      "index": 1,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Pont_tibet%C3%A0_de_Canillo,_a_la_vall_del_Riu.jpg",
+      "author": "Catalaalatac",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "Camí de les Pardines & Engolasters": {
+      "region": "ANDORRA",
+      "index": 2,
+      "photo": false,
+      "source": "",
+      "author": "ReisePilot",
+      "license": "lokale Illustration",
+      "licenseUrl": ""
+    },
+    "Incles-Tal": {
+      "region": "ANDORRA",
+      "index": 3,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Vall_d%27Incles_II.jpg",
+      "author": "Joan Carles Hinojosa",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "Tristaina-Seen & Solar-Aussichtspunkt": {
+      "region": "ANDORRA",
+      "index": 4,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Mirador_solar_de_Tristaina_(1).jpg",
+      "author": "Alberto-g-rovi",
+      "license": "CC BY 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+    },
+    "Ruta del Ferro": {
+      "region": "ANDORRA",
+      "index": 5,
+      "photo": false,
+      "source": "",
+      "author": "ReisePilot",
+      "license": "lokale Illustration",
+      "licenseUrl": ""
+    },
+    "Naturpark Sorteny": {
+      "region": "ANDORRA",
+      "index": 6,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Andorra,_Vall_de_Sorteny,_view_along_the_valley_01.jpg",
+      "author": "AndyScott",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "Naturland": {
+      "region": "ANDORRA",
+      "index": 7,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Lukasedt_-_Naturland_-_1.jpg",
+      "author": "Eweht",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "Mon(t) Magic Canillo": {
+      "region": "ANDORRA",
+      "index": 8,
+      "photo": false,
+      "source": "",
+      "author": "ReisePilot",
+      "license": "lokale Illustration",
+      "licenseUrl": ""
+    },
+    "Caldea": {
+      "region": "ANDORRA",
+      "index": 9,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Caldea_20231205_122111.jpg",
+      "author": "FrankAndProust",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+    },
+    "Palau de Gel Canillo": {
+      "region": "ANDORRA",
+      "index": 10,
+      "photo": false,
+      "source": "",
+      "author": "ReisePilot",
+      "license": "lokale Illustration",
+      "licenseUrl": ""
+    },
+    "Automobilmuseum Encamp": {
+      "region": "ANDORRA",
+      "index": 11,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Bugatti_Type_57C_at_Museu_Nacional_de_l%27Autom%C3%B2bil.JPG",
+      "author": "Gertjan R.",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "Ordino Altstadt": {
+      "region": "ANDORRA",
+      "index": 12,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Ordino._Andorra_24.jpg",
+      "author": "Luis Miguel Bugallo Sánchez (Lmbuga)",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "Santuari de Meritxell": {
+      "region": "ANDORRA",
+      "index": 13,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Santuari_nou_de_Meritxell_-_10.jpg",
+      "author": "Angela Llop",
+      "license": "CC BY-SA 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+    },
+    "Altstadt Andorra la Vella": {
+      "region": "ANDORRA",
+      "index": 14,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Casa_de_la_Vall._1580._Andorra_149.jpg",
+      "author": "Luis Miguel Bugallo Sánchez (Lmbuga)",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "Avinguda Meritxell": {
+      "region": "ANDORRA",
+      "index": 15,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Avinguda_Meritxell_Andorra_la_Vella_20231008_124420.jpg",
+      "author": "FrankAndProust",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+    },
+    "Illa Carlemany": {
+      "region": "ANDORRA",
+      "index": 16,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Interior_de_l%27Illa_Carlemany_1.JPG",
+      "author": "Jordiferrer",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "Pyrénées Andorra": {
+      "region": "ANDORRA",
+      "index": 17,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Pyr%C3%A9n%C3%A9es_Andorra.jpg",
+      "author": "Lks.poch",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "Epizen": {
+      "region": "ANDORRA",
+      "index": 18,
+      "photo": false,
+      "source": "",
+      "author": "ReisePilot",
+      "license": "lokale Illustration",
+      "licenseUrl": ""
+    },
+    "Sant Joan de Caselles": {
+      "region": "ANDORRA",
+      "index": 19,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Esgl%C3%A9sia_de_Sant_Joan_de_Caselles_-_10.jpg",
+      "author": "fer55.",
+      "license": "CC BY-SA 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+    },
+    "Casa d’Areny-Plandolit": {
+      "region": "ANDORRA",
+      "index": 20,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Casa_d%27Areny-Plandolit_-_2.JPG",
+      "author": "Carles Paredes",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "Mirador de la Comella": {
+      "region": "ANDORRA",
+      "index": 21,
+      "photo": false,
+      "source": "",
+      "author": "ReisePilot",
+      "license": "lokale Illustration",
+      "licenseUrl": ""
+    },
+    "Estanys de Juclà": {
+      "region": "ANDORRA",
+      "index": 22,
+      "photo": false,
+      "source": "",
+      "author": "ReisePilot",
+      "license": "lokale Illustration",
+      "licenseUrl": ""
+    },
+    "Vall del Madriu": {
+      "region": "ANDORRA",
+      "index": 23,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Benvinguts_Madriu-Perafita-Claror.jpg",
+      "author": "Ferran Llorens",
+      "license": "CC BY-SA 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+    },
+    "Bici Lab Andorra": {
+      "region": "ANDORRA",
+      "index": 24,
+      "photo": false,
+      "source": "",
+      "author": "ReisePilot",
+      "license": "lokale Illustration",
+      "licenseUrl": ""
+    },
+    "Eiffelturm & Trocadéro": {
+      "region": "PARIS",
+      "index": 0,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Tour_eiffel_at_sunrise_from_the_trocadero.jpg",
+      "author": "Tristan Nitot",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    "Seine-Fahrt": {
+      "region": "PARIS",
+      "index": 1,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Paris_Bateaux-Mouches_Embarcad%C3%A8re_z.jpg",
+      "author": "Kapsuglan",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "Montmartre & Sacré-Cœur": {
+      "region": "PARIS",
+      "index": 2,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Basilique_du_Sacr%C3%A9-C%C5%93ur_de_Montmartre_-_Paris_-_GT-01_-_2024.jpg",
+      "author": "Terragio67",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "Arc de Triomphe": {
+      "region": "PARIS",
+      "index": 3,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Arc_de_Triomphe_de_l%27%C3%89toile_in_July_2011.jpg",
+      "author": "Alvesgaspar",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "Louvre & Tuilerien": {
+      "region": "PARIS",
+      "index": 4,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Louvre_Museum_Wikimedia_Commons.jpg",
+      "author": "Benh LIEU SONG ( Flickr )",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "Notre-Dame & Île de la Cité": {
+      "region": "PARIS",
+      "index": 5,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Notre-Dame_de_Paris_and_%C3%8Ele_de_la_Cit%C3%A9_at_dusk_140516_1.jpg",
+      "author": "DXR",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "Sainte-Chapelle": {
+      "region": "PARIS",
+      "index": 6,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Paris,_Sainte-Chapelle,_Obere_Kapelle,_Innenansicht_(3).jpg",
+      "author": "Cmcmcm1",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "Jardin du Luxembourg": {
+      "region": "PARIS",
+      "index": 7,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:2017_-_Le_palais_du_Luxembourg,_dans_le_jardin_du_Luxembourg,_Paris_-_2.jpg",
+      "author": "Luis Miguel Bugallo Sánchez (Lmbuga)",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "Cité des Sciences": {
+      "region": "PARIS",
+      "index": 8,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Inside_Cite_des_Sciences,_La_Villette.jpg",
+      "author": "Mechi4895",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+    },
+    "Grande Galerie de l’Évolution": {
+      "region": "PARIS",
+      "index": 9,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Grande_galerie_de_l%27%C3%A9volution_img_1431.jpg",
+      "author": "Med",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    "Aquarium de Paris": {
+      "region": "PARIS",
+      "index": 10,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Aquarium_de_Paris_12-26_(32135515416).jpg",
+      "author": "KimonBerlin",
+      "license": "CC BY-SA 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+    },
+    "Jardin d’Acclimatation": {
+      "region": "PARIS",
+      "index": 11,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Jardin_d%27acclimatation_-_Paris_-_La_rivi%C3%A8re_enchant%C3%A9e.jpg",
+      "author": "Piero d'Houin - Inocybe",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "Musée de l’Air et de l’Espace": {
+      "region": "PARIS",
+      "index": 12,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Mus%C3%A9e_de_l%27Air_et_de_l%27Espace_Voisin_Farman_1bis.jpg",
+      "author": "The original uploader was Stahlkocher at German Wikipedia .",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    "Parc des Buttes-Chaumont": {
+      "region": "PARIS",
+      "index": 13,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Parc_des_Buttes-Chaumont_1.jpg",
+      "author": "The original uploader was Olrick at French Wikipedia .",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    "Canal Saint-Martin": {
+      "region": "PARIS",
+      "index": 14,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Canal_Saint-Martin_in_July_2022.jpg",
+      "author": "DiscoA340",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "Galeries Lafayette Dachterrasse": {
+      "region": "PARIS",
+      "index": 15,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Paris_Galeries_Lafayette_Haussmann_vieuw.jpg",
+      "author": "Kapsuglan",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "Westfield Les 4 Temps": {
+      "region": "PARIS",
+      "index": 16,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:La_D%C3%A9fense_Parvis_Quatre_Temps_01.jpg",
+      "author": "Freepenguin",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "Bercy Village": {
+      "region": "PARIS",
+      "index": 17,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Bercy_Village_-_vue_g%C3%A9n%C3%A9rale.JPG",
+      "author": "Véronique PAGNIER",
+      "license": "Public domain",
+      "licenseUrl": ""
+    },
+    "Atelier des Lumières": {
+      "region": "PARIS",
+      "index": 18,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Atelier_des_Lumi%C3%A8res_Klimt.jpg",
+      "author": "Caroline Léna Becker",
+      "license": "CC BY 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+    },
+    "Musée Grévin": {
+      "region": "PARIS",
+      "index": 19,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Mus%C3%A9e_Gr%C3%A9vin,_Mm_Roland,_Parijs_1959.jpg",
+      "author": "Exact photographer was not known. Most of the time Wim Zevenhek or Johanna Deus.",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+    },
+    "Opéra Garnier": {
+      "region": "PARIS",
+      "index": 20,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Paris._Palais_Garnier._Interior._Postcard_from_1909.jpg",
+      "author": "Publisher: Lucien Levy & Sons. Paris.",
+      "license": "Public domain",
+      "licenseUrl": ""
+    },
+    "Schloss Versailles": {
+      "region": "PARIS",
+      "index": 21,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Palace_of_Versailles_seem_from_its_Gardens.jpg",
+      "author": "DiscoA340",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "Disneyland Paris": {
+      "region": "PARIS",
+      "index": 22,
+      "photo": false,
+      "source": "",
+      "author": "ReisePilot",
+      "license": "lokale Illustration",
+      "licenseUrl": ""
+    },
+    "Ménagerie im Jardin des Plantes": {
+      "region": "PARIS",
+      "index": 23,
+      "photo": true,
+      "source": "https://commons.wikimedia.org/wiki/File:Mara_-_M%C3%A9nagerie_du_Jardin_des_plantes_-_Paris.jpg",
+      "author": "Camille Gévaudan",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    }
+  }
+}
