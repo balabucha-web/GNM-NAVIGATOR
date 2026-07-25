@@ -117,9 +117,10 @@ internal object DestinationOfflinePhotoCatalog {
 }
 
 /**
- * Always paints an instant offline preview. For the remaining illustration-only
- * entries, an exact POI photo is resolved once and cached locally. Wrong generic
- * city images are still rejected by WikiImageResolver.
+ * Always paints an instant offline preview. Missing or visually weak entries
+ * receive a curated second-pass Wikimedia lookup and are cached by Coil. If no
+ * exact result exists, the clearly labelled local illustration remains visible
+ * instead of an unrelated generic city image.
  */
 @Composable
 internal fun DestinationOfflinePhoto(place: TravelPlace, modifier: Modifier = Modifier) {
@@ -132,10 +133,16 @@ internal fun DestinationOfflinePhoto(place: TravelPlace, modifier: Modifier = Mo
             DestinationOfflinePhotoCatalog.loadSprite(context.applicationContext, place.region)
         }
     }
-    val exactPhoto by produceState<String?>(initialValue = null, place.title, entry?.isPhoto) {
-        value = if (entry?.isPhoto == false) {
-            runCatching { WikiImageResolver.resolve(context.applicationContext, place) }.getOrNull()
-        } else null
+    val enhanced = remember(place.title) { EnhancedDestinationImage56.shouldEnhance(place) }
+    val exactPhoto by produceState<String?>(initialValue = null, place.title, entry?.isPhoto, enhanced) {
+        value = withContext(Dispatchers.IO) {
+            when {
+                enhanced -> EnhancedDestinationImage56.resolve(context.applicationContext, place)
+                    ?: if (entry?.isPhoto == false) WikiImageResolver.resolve(context.applicationContext, place) else null
+                entry?.isPhoto == false -> WikiImageResolver.resolve(context.applicationContext, place)
+                else -> null
+            }
+        }
     }
 
     Box(modifier) {
