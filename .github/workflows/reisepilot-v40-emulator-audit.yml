@@ -39,7 +39,6 @@ jobs:
           set -o pipefail
           cd reisepilot
           python3 scripts/apply_v56_live_home_patch.py
-          python3 scripts/apply_v561_layout_patch.py
           echo 'PHASE compile started' > emulator-summary.txt
           gradle :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace 2>&1 | tee emulator-compile.log
           echo 'PHASE compile passed' >> emulator-summary.txt
