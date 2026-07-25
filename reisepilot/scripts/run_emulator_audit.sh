@@ -144,6 +144,21 @@ PY
   sleep 2
 }
 
+click_text_with_scroll() {
+  local needle="$1"
+  if click_text "$needle"; then
+    return 0
+  fi
+  for _ in 1 2 3 4; do
+    "$ADB_BIN" shell input swipe 430 1500 430 650 550 >/dev/null 2>&1 || true
+    sleep 1
+    if click_text "$needle"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 capture_driver() {
   local label="$1"
   "$ADB_BIN" exec-out screencap -p > "driver-${label}.png" || true
@@ -162,10 +177,10 @@ sleep 6
 capture_driver "00-preparation"
 
 DRIVER_CODE=0
-if click_text "Testfahrt starten"; then
-  echo "DRIVER start control activated" | tee -a driver-audit.log
+if click_text_with_scroll "Testfahrt starten"; then
+  echo "DRIVER start control activated after current-leg review" | tee -a driver-audit.log
 else
-  echo "DRIVER start control not found" | tee -a driver-audit.log
+  echo "DRIVER start control not found after scrolling" | tee -a driver-audit.log
   DRIVER_CODE=1
 fi
 sleep 6
