@@ -34,10 +34,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.0'
-      - name: Apply 5.6 and 5.6.1 dashboard patches
-        run: |
-          python3 scripts/apply_v56_live_home_patch.py
-          python3 scripts/apply_v561_layout_patch.py
+      - name: Apply 5.6.1 dashboard patch
+        run: python3 scripts/apply_v56_live_home_patch.py
       - name: Verify ReisePilot 5.6.1 sources
         run: |
           python3 - <<'PY'
@@ -53,20 +51,26 @@ jobs:
                   'bottom = 86.dp',
               ],
               'HomeDashboard55.kt': [
-                  'AKTUELLE TEILSTRECKE',
-                  'Zwischenübernachtung in Montbéliard',
-                  'Diese Teilstrecke navigieren',
-                  'preferredStage561',
+                  'CurrentLegCard561(',
+                  'preferredStage561(snapshot)',
                   'snapshot.active && displayStage == snapshot.stage',
                   'Gesamtreise',
-                  'NextRow561',
+                  'HomeMetrics561',
+                  'NextThings561',
                   'roadState.scopeLabel',
-                  'AI-Assistent',
                   'open-reise-assistant',
                   'Tank und Reichweite',
                   'Wetter entlang der Route',
                   'ANKUNFTSMODUS',
                   'NativeTripMap54',
+              ],
+              'HomeStability561.kt': [
+                  'AKTUELLE TEILSTRECKE',
+                  'Etappe 1 von 2 · Zwischenhotel',
+                  'Bis Hotel',
+                  'Live-Daten',
+                  'preferredStage561',
+                  'NextThings561',
               ],
               'CompactDiagnostics51.kt': [
                   'Prüfungen abgeschlossen',
@@ -140,7 +144,7 @@ jobs:
           assert "OPENAI_API_KEY" in backend
           repo_text = '\n'.join(path.read_text(errors='ignore') for path in Path('.').rglob('*') if path.is_file() and '.git' not in path.parts)
           assert 'sk-proj-' not in repo_text
-          print('PASS: ReisePilot 5.6.1 current-leg dashboard, progressive diagnostics and nearby live data present')
+          print('PASS: ReisePilot 5.6.1 current hotel leg, progressive diagnostics and ordered nearby live data present')
           PY
           node --check backend/openai-proxy/server.mjs
       - name: Check live sources and Wikimedia images
