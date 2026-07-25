@@ -7,12 +7,77 @@ text = path.read_text(encoding="utf-8")
 
 replacements = [
     (
+        '''    val context = activity.applicationContext
+    val settings = remember { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }''',
+        '''    val context = activity.applicationContext
+    val hasNearbyPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    val settings = remember { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }'''
+    ),
+    (
+        '''            item {
+                HomeHero55(
+                    activity = activity,
+                    snapshot = displaySnapshot,
+                    mode = mode,
+                    preview = preview.route,
+                    savedParkings = savedParkings,
+                    roadState = roadState,
+                    weather = weather,
+                    heroPlace = heroPlace,
+                    night = night,
+                    onOpenMap = { onOpenTab(AppTab.ROUTE) }
+                )
+            }
+            if (!snapshot.active && mode == HomeMode55.PRE_TRIP) {''',
+        '''            item {
+                HomeHero55(
+                    activity = activity,
+                    snapshot = displaySnapshot,
+                    mode = mode,
+                    preview = preview.route,
+                    savedParkings = savedParkings,
+                    roadState = roadState,
+                    weather = weather,
+                    heroPlace = heroPlace,
+                    night = night,
+                    onOpenMap = { onOpenTab(AppTab.ROUTE) }
+                )
+            }
+            if (!hasNearbyPermission && !snapshot.active) {
+                item {
+                    HomeCard55(night) {
+                        Text("Live-Daten am aktuellen Standort", color = homeText55(night), style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(5.dp))
+                        Text(
+                            "Standort einmal freigeben. Danach lädt ReisePilot Tankstellen, Preise, Raststätten und Parkplätze direkt nach dem Öffnen – auch ohne gestartete Route.",
+                            color = homeMuted55(night),
+                            fontSize = 12.sp
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Button(
+                            onClick = activity::requestNearbyLocationPermission56,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp)
+                        ) { Text("Standort für Live-Daten freigeben") }
+                    }
+                }
+            }
+            if (!snapshot.active && mode == HomeMode55.PRE_TRIP) {'''
+    ),
+    (
         'HomeSectionTitle55("Was kommt als Nächstes?", "in Fahrtrichtung", primaryText, secondaryText)',
         'HomeSectionTitle55("Was kommt als Nächstes?", roadState.scopeLabel, primaryText, secondaryText)'
     ),
     (
-        '''    val fuel = roadState.nextFuel\n    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(end = 8.dp)) {\n        if (snapshot.active) {''',
-        '''    val fuel = roadState.nextFuel\n    val showLive = snapshot.active || roadState.nearbyMode || roadState.loadingFuel || roadState.loadingRoadside ||\n        roadState.fuelOptions.isNotEmpty() || roadState.roadsideStops.isNotEmpty()\n    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(end = 8.dp)) {\n        if (showLive) {'''
+        '''    val fuel = roadState.nextFuel
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(end = 8.dp)) {
+        if (snapshot.active) {''',
+        '''    val fuel = roadState.nextFuel
+    val showLive = snapshot.active || roadState.nearbyMode || roadState.loadingFuel || roadState.loadingRoadside ||
+        roadState.fuelOptions.isNotEmpty() || roadState.roadsideStops.isNotEmpty()
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(end = 8.dp)) {
+        if (showLive) {'''
     ),
     (
         'detail = service?.let { travelTime55(it.distanceAheadKm, roadState.speedKmh) + featureText55(it) }.orEmpty(),',
