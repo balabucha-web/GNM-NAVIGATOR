@@ -1,9 +1,9 @@
-name: Build ReisePilot 5.8 Build 32
+name: Build ReisePilot 5.9 Build 33
 
 on:
   push:
     branches:
-      - "reisepilot-build32"
+      - "reisepilot-build33"
   pull_request:
     branches:
       - "main"
@@ -17,14 +17,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Reassemble source archive
+      - name: Reassemble Build 32 source
         run: cat source.part00 source.part01 source.part02 source.part03 source.part04 source.part05 source.part06 > ReisePilot-v5.8-Build32-Source.zip
 
-      - name: Verify source archive
+      - name: Verify base source
         run: echo "f6f1d2f97f6e2ff05a4150703068825f98d067a4a391e02ea58eb514dba5e8d6  ReisePilot-v5.8-Build32-Source.zip" | sha256sum -c -
 
-      - name: Unpack source
-        run: unzip -qo ReisePilot-v5.8-Build32-Source.zip
+      - name: Unpack and apply Build 33 repair
+        run: |
+          unzip -qo ReisePilot-v5.8-Build32-Source.zip
+          base64 -d build33.patch.gz.b64 | gzip -d > /tmp/build33.patch
+          echo "945c28abfd3df4ba88b33ce58ac2f08e0d5d05881ce344cdace193af21b3631c  /tmp/build33.patch" | sha256sum -c -
+          patch -p1 < /tmp/build33.patch
+          grep -q 'versionCode = 33' app/build.gradle.kts
+          grep -q 'fun searchNearby' app/src/main/java/de/balabucha/reisepilot/RoutePoiClient.kt
 
       - uses: actions/setup-java@v4
         with:
@@ -35,19 +41,25 @@ jobs:
         with:
           gradle-version: "9.5.0"
 
-      - name: Build debug APK
+      - name: Compile and build debug APK
         run: gradle :app:assembleDebug --stacktrace --warning-mode all
 
-      - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk ReisePilot-Live-v5.8-Build32.apk
-
-      - name: Generate checksum
-        run: sha256sum ReisePilot-Live-v5.8-Build32.apk > ReisePilot-Live-v5.8-Build32.apk.sha256
+      - name: Package source
+        run: |
+          zip -qr ReisePilot-v5.9-Build33-Source.zip . -x '.git/*' 'ReisePilot-v5.8-Build32-Source.zip' 'build33.patch.gz.b64' 'app/build/*' '.gradle/*'
+          cp app/build/outputs/apk/debug/app-debug.apk ReisePilot-Live-v5.9-Build33.apk
+          sha256sum ReisePilot-Live-v5.9-Build33.apk > ReisePilot-Live-v5.9-Build33.apk.sha256
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-Live-v5.8-Build32-APK
+          name: ReisePilot-Live-v5.9-Build33-APK
           path: |
-            ReisePilot-Live-v5.8-Build32.apk
-            ReisePilot-Live-v5.8-Build32.apk.sha256
+            ReisePilot-Live-v5.9-Build33.apk
+            ReisePilot-Live-v5.9-Build33.apk.sha256
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ReisePilot-v5.9-Build33-Source
+          path: ReisePilot-v5.9-Build33-Source.zip
           if-no-files-found: error
