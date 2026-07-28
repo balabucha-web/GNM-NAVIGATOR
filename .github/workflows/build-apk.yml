@@ -1,4 +1,4 @@
-name: Build ReisePilot 5.8 Build 32
+name: Recover and build ReisePilot 5.8 Build 32
 
 on:
   push:
@@ -22,6 +22,12 @@ jobs:
 
       - name: Verify source archive
         run: echo "f6f1d2f97f6e2ff05a4150703068825f98d067a4a391e02ea58eb514dba5e8d6  ReisePilot-v5.8-Build32-Source.zip" | sha256sum -c -
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ReisePilot-v5.8-Build32-Source
+          path: ReisePilot-v5.8-Build32-Source.zip
+          if-no-files-found: error
 
       - name: Unpack source
         run: unzip -qo ReisePilot-v5.8-Build32-Source.zip
