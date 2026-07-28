@@ -1,16 +1,13 @@
-name: Build ReisePilot 5.8 Build 32
+name: Recover ReisePilot 5.8 Build 32 source
 
 on:
   push:
     branches:
-      - "reisepilot-build32"
-  pull_request:
-    branches:
-      - "main"
+      - "reisepilot-build32-recovery"
   workflow_dispatch:
 
 jobs:
-  build:
+  recover:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -23,31 +20,8 @@ jobs:
       - name: Verify source archive
         run: echo "f6f1d2f97f6e2ff05a4150703068825f98d067a4a391e02ea58eb514dba5e8d6  ReisePilot-v5.8-Build32-Source.zip" | sha256sum -c -
 
-      - name: Unpack source
-        run: unzip -qo ReisePilot-v5.8-Build32-Source.zip
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "9.5.0"
-
-      - name: Build debug APK
-        run: gradle :app:assembleDebug --stacktrace --warning-mode all
-
-      - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk ReisePilot-Live-v5.8-Build32.apk
-
-      - name: Generate checksum
-        run: sha256sum ReisePilot-Live-v5.8-Build32.apk > ReisePilot-Live-v5.8-Build32.apk.sha256
-
       - uses: actions/upload-artifact@v4
         with:
-          name: ReisePilot-Live-v5.8-Build32-APK
-          path: |
-            ReisePilot-Live-v5.8-Build32.apk
-            ReisePilot-Live-v5.8-Build32.apk.sha256
+          name: ReisePilot-v5.8-Build32-Source
+          path: ReisePilot-v5.8-Build32-Source.zip
           if-no-files-found: error
