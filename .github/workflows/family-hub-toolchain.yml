@@ -1,0 +1,30 @@
+name: Family Hub Toolchain
+on:
+  push:
+    branches: [family-hub-build-bootstrap]
+permissions:
+  contents: read
+jobs:
+  toolchain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Install SDK 35
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+      - name: Pack toolchain
+        run: |
+          G=$(dirname $(dirname $(readlink -f $(which gradle))))
+          tar -czf /tmp/family-hub-toolchain.tgz "$ANDROID_HOME" "$G"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: family-hub-toolchain
+          path: /tmp/family-hub-toolchain.tgz
+          compression-level: 0
+          retention-days: 1
