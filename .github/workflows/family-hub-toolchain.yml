@@ -51,7 +51,7 @@ jobs:
                   androidMain.dependencies { implementation("app.cash.sqldelight:android-driver:2.0.2") }
               }
           }
-          android { namespace = "app.familyhub.core"; compileSdk = 35; defaultConfig { minSdk = 26 } }
+          android { namespace = "app.familyhub.core"; compileSdk = 35; defaultConfig { minSdk = 26 }; compileOptions { sourceCompatibility = JavaVersion.VERSION_21; targetCompatibility = JavaVersion.VERSION_21 } }
           sqldelight { databases { create("FamilyHubDatabase") { packageName.set("app.familyhub.db") } } }
           EOF
           cat > /tmp/bootstrap/shared-core/src/commonMain/kotlin/Bootstrap.kt <<'EOF'
@@ -66,7 +66,7 @@ jobs:
           EOF
           cat > /tmp/bootstrap/android-app/build.gradle.kts <<'EOF'
           plugins { id("com.android.application"); kotlin("android"); kotlin("plugin.serialization") }
-          android { namespace = "app.familyhub.android"; compileSdk = 35; defaultConfig { applicationId = "app.familyhub.bootstrap"; minSdk = 26; targetSdk = 35; versionCode = 1; versionName = "bootstrap" } }
+          android { namespace = "app.familyhub.android"; compileSdk = 35; defaultConfig { applicationId = "app.familyhub.bootstrap"; minSdk = 26; targetSdk = 35; versionCode = 1; versionName = "bootstrap" }; compileOptions { sourceCompatibility = JavaVersion.VERSION_21; targetCompatibility = JavaVersion.VERSION_21 } }
           dependencies {
               implementation(project(":shared-core"))
               implementation("androidx.core:core-ktx:1.15.0")
