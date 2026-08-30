@@ -18,10 +18,83 @@ jobs:
           gradle-version: '8.9'
       - name: Install SDK 35
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
-      - name: Pack toolchain
+      - name: Resolve Family Hub Android dependencies
         run: |
+          mkdir -p /tmp/bootstrap/android-app/src/main /tmp/bootstrap/shared-core/src/commonMain/kotlin /tmp/bootstrap/shared-core/src/androidMain/kotlin /tmp/bootstrap/shared-core/src/commonMain/sqldelight/app/familyhub/db
+          cat > /tmp/bootstrap/settings.gradle.kts <<'EOF'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+          rootProject.name = "family-hub-bootstrap"
+          include(":shared-core", ":android-app")
+          EOF
+          cat > /tmp/bootstrap/build.gradle.kts <<'EOF'
+          plugins {
+              kotlin("multiplatform") version "2.1.0" apply false
+              kotlin("android") version "2.1.0" apply false
+              kotlin("plugin.serialization") version "2.1.0" apply false
+              id("com.android.application") version "8.7.3" apply false
+              id("com.android.library") version "8.7.3" apply false
+              id("app.cash.sqldelight") version "2.0.2" apply false
+          }
+          EOF
+          cat > /tmp/bootstrap/gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx2g -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          kotlin.code.style=official
+          EOF
+          cat > /tmp/bootstrap/shared-core/build.gradle.kts <<'EOF'
+          plugins { kotlin("multiplatform"); kotlin("plugin.serialization"); id("com.android.library"); id("app.cash.sqldelight") }
+          kotlin {
+              androidTarget()
+              sourceSets {
+                  commonMain.dependencies { implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3"); implementation("app.cash.sqldelight:runtime:2.0.2") }
+                  androidMain.dependencies { implementation("app.cash.sqldelight:android-driver:2.0.2") }
+              }
+          }
+          android { namespace = "app.familyhub.core"; compileSdk = 35; defaultConfig { minSdk = 26 } }
+          sqldelight { databases { create("FamilyHubDatabase") { packageName.set("app.familyhub.db") } } }
+          EOF
+          cat > /tmp/bootstrap/shared-core/src/commonMain/kotlin/Bootstrap.kt <<'EOF'
+          package app.familyhub.core
+          import kotlinx.serialization.Serializable
+          @Serializable data class Bootstrap(val value: String)
+          EOF
+          cat > /tmp/bootstrap/shared-core/src/commonMain/sqldelight/app/familyhub/db/Bootstrap.sq <<'EOF'
+          CREATE TABLE bootstrap_item(id TEXT NOT NULL PRIMARY KEY);
+          selectAll:
+          SELECT * FROM bootstrap_item;
+          EOF
+          cat > /tmp/bootstrap/android-app/build.gradle.kts <<'EOF'
+          plugins { id("com.android.application"); kotlin("android"); kotlin("plugin.serialization") }
+          android { namespace = "app.familyhub.android"; compileSdk = 35; defaultConfig { applicationId = "app.familyhub.bootstrap"; minSdk = 26; targetSdk = 35; versionCode = 1; versionName = "bootstrap" } }
+          dependencies {
+              implementation(project(":shared-core"))
+              implementation("androidx.core:core-ktx:1.15.0")
+              implementation("androidx.activity:activity-ktx:1.10.0")
+              implementation("androidx.work:work-runtime-ktx:2.10.0")
+              implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+              implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+              implementation("com.google.android.gms:play-services-auth:21.6.0")
+              testImplementation("junit:junit:4.13.2")
+              testImplementation("org.json:json:20240303")
+          }
+          EOF
+          echo '<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application /></manifest>' > /tmp/bootstrap/android-app/src/main/AndroidManifest.xml
+          cd /tmp/bootstrap
+          gradle :android-app:assembleDebug --stacktrace
+      - name: Pack minimal offline toolchain
+        run: |
+          set -eux
           G=$(dirname $(dirname $(readlink -f $(which gradle))))
-          tar -czf /tmp/family-hub-toolchain.tgz "$ANDROID_HOME" "$G"
+          mkdir -p /tmp/fh-toolchain/sdk/platforms /tmp/fh-toolchain/sdk/build-tools /tmp/fh-toolchain/sdk/platform-tools /tmp/fh-toolchain/sdk/licenses /tmp/fh-toolchain/gradle
+          cp -a "$ANDROID_HOME/platforms/android-35" /tmp/fh-toolchain/sdk/platforms/
+          cp -a "$ANDROID_HOME/build-tools/35.0.0" /tmp/fh-toolchain/sdk/build-tools/
+          cp -a "$ANDROID_HOME/platform-tools/." /tmp/fh-toolchain/sdk/platform-tools/
+          cp -a "$ANDROID_HOME/licenses/." /tmp/fh-toolchain/sdk/licenses/ || true
+          cp -a "$G/." /tmp/fh-toolchain/gradle/
+          cp -a "$HOME/.gradle" /tmp/fh-toolchain/gradle-home
+          tar -C /tmp -czf /tmp/family-hub-toolchain.tgz fh-toolchain
+          ls -lh /tmp/family-hub-toolchain.tgz
       - uses: actions/upload-artifact@v4
         with:
           name: family-hub-toolchain
