@@ -17,7 +17,7 @@ jobs:
         with:
           gradle-version: '8.9'
       - name: Install SDK 35
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
       - name: Resolve Family Hub Android dependencies
         run: |
           mkdir -p /tmp/bootstrap/android-app/src/main /tmp/bootstrap/shared-core/src/commonMain/kotlin /tmp/bootstrap/shared-core/src/androidMain/kotlin /tmp/bootstrap/shared-core/src/commonMain/sqldelight/app/familyhub/db
@@ -82,22 +82,30 @@ jobs:
           echo '<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application /></manifest>' > /tmp/bootstrap/android-app/src/main/AndroidManifest.xml
           cd /tmp/bootstrap
           gradle :android-app:assembleDebug --stacktrace
-      - name: Pack minimal offline toolchain
+      - name: Pack toolchain and dependency cache separately
         run: |
           set -eux
           G=$(dirname $(dirname $(readlink -f $(which gradle))))
-          mkdir -p /tmp/fh-toolchain/sdk/platforms /tmp/fh-toolchain/sdk/build-tools /tmp/fh-toolchain/sdk/platform-tools /tmp/fh-toolchain/sdk/licenses /tmp/fh-toolchain/gradle
-          cp -a "$ANDROID_HOME/platforms/android-35" /tmp/fh-toolchain/sdk/platforms/
-          cp -a "$ANDROID_HOME/build-tools/35.0.0" /tmp/fh-toolchain/sdk/build-tools/
-          cp -a "$ANDROID_HOME/platform-tools/." /tmp/fh-toolchain/sdk/platform-tools/
-          cp -a "$ANDROID_HOME/licenses/." /tmp/fh-toolchain/sdk/licenses/ || true
-          cp -a "$G/." /tmp/fh-toolchain/gradle/
-          cp -a "$HOME/.gradle" /tmp/fh-toolchain/gradle-home
-          tar -C /tmp -czf /tmp/family-hub-toolchain.tgz fh-toolchain
-          ls -lh /tmp/family-hub-toolchain.tgz
+          mkdir -p /tmp/fh-tools/sdk/platforms /tmp/fh-tools/sdk/build-tools /tmp/fh-tools/sdk/licenses /tmp/fh-tools/gradle
+          cp -a "$ANDROID_HOME/platforms/android-35" /tmp/fh-tools/sdk/platforms/
+          cp -a "$ANDROID_HOME/build-tools/35.0.0" /tmp/fh-tools/sdk/build-tools/
+          cp -a "$ANDROID_HOME/licenses/." /tmp/fh-tools/sdk/licenses/ || true
+          cp -a "$G/." /tmp/fh-tools/gradle/
+          tar -C /tmp -czf /tmp/family-hub-tools.tgz fh-tools
+          mkdir -p /tmp/fh-cache
+          cp -a "$HOME/.gradle/caches" /tmp/fh-cache/
+          cp -a "$HOME/.gradle/notifications" /tmp/fh-cache/ 2>/dev/null || true
+          tar -C /tmp -czf /tmp/family-hub-gradle-cache.tgz fh-cache
+          ls -lh /tmp/family-hub-tools.tgz /tmp/family-hub-gradle-cache.tgz
       - uses: actions/upload-artifact@v4
         with:
-          name: family-hub-toolchain
-          path: /tmp/family-hub-toolchain.tgz
+          name: family-hub-tools
+          path: /tmp/family-hub-tools.tgz
+          compression-level: 0
+          retention-days: 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: family-hub-gradle-cache
+          path: /tmp/family-hub-gradle-cache.tgz
           compression-level: 0
           retention-days: 1
